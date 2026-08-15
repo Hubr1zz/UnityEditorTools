@@ -1,0 +1,67 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3a9752b0c8e144801967e6897679604b, type: 3}
+  m_Name: vHierarchy Data
+  m_EditorClassIdentifier: 
+  sceneDatas_byGuid:
+    keys:
+    - 9fc0d4010bbf28b4594072e72b8655ab
+    - 5aec9540f094b1b40b7fa4a6ecf30807
+    - 62ae08821a50460418c76cbf295b8802
+    values:
+    - goDatas_byGlobalId:
+        keys:
+        - globalObjectIdString: GlobalObjectId_V1-2-9fc0d4010bbf28b4594072e72b8655ab-1880962817-0
+        values:
+        - colorIndex: 0
+          iconNameOrGuid: SphereCollider Icon
+          isIconRecursive: 0
+          isColorRecursive: 0
+    - goDatas_byGlobalId:
+        keys:
+        - globalObjectIdString: GlobalObjectId_V1-2-5aec9540f094b1b40b7fa4a6ecf30807-114661272-0
+        values:
+        - colorIndex: 0
+          iconNameOrGuid: Canvas Icon
+          isIconRecursive: 0
+          isColorRecursive: 0
+    - goDatas_byGlobalId:
+        keys:
+        - globalObjectIdString: GlobalObjectId_V1-2-62ae08821a50460418c76cbf295b8802-1339600126-0
+        values:
+        - colorIndex: 0
+          iconNameOrGuid: ParticleSystem Icon
+          isIconRecursive: 0
+          isColorRecursive: 1
+  bookmarks:
+  - _go: {fileID: 0}
+    globalId:
+      globalObjectIdString: GlobalObjectId_V1-2-9fc0d4010bbf28b4594072e72b8655ab-963194225-0
+    note: 
+  - _go: {fileID: 0}
+    globalId:
+      globalObjectIdString: GlobalObjectId_V1-2-5aec9540f094b1b40b7fa4a6ecf30807-1175294568-0
+    note: 
+  - _go: {fileID: 0}
+    globalId:
+      globalObjectIdString: GlobalObjectId_V1-2-5aec9540f094b1b40b7fa4a6ecf30807-399887398-0
+    note: 
+  - _go: {fileID: 0}
+    globalId:
+      globalObjectIdString: GlobalObjectId_V1-2-62ae08821a50460418c76cbf295b8802-616973442-0
+    note: 
+  - _go: {fileID: 0}
+    globalId:
+      globalObjectIdString: GlobalObjectId_V1-2-c54380ff588f0834bae380b8ab92ab06-636186559-0
+    note: 
+  bookmarkedScenePaths:
+  - Packages/com.unity.render-pipelines.universal/Editor/SceneTemplates/Standard.unity
