@@ -2161,8 +2161,12 @@ namespace VInspector.Libs
             get
             {
                 Event current = Event.current;
-                if (_curEvent == null || !object.ReferenceEquals(_curEvent.e, current))
+                if (current != null && (_curEvent == null || !object.ReferenceEquals(_curEvent.e, current)))
                     _curEvent = current.Wrap();
+
+                if (_curEvent == null)
+                    _curEvent = new Event().Wrap();
+
                 return _curEvent;
             }
         }

@@ -240,7 +240,18 @@ namespace VFolders
 
             treeViewAnimatesExpansion = treeViewAnimator?.GetMemberValue<bool>("isAnimating") ?? false;
             animatingItemTragetExpanded_fromTreeViewExpandAnimator = treeViewAnimatorSetup?.GetMemberValue<bool>("expanding") ?? false;
+#if UNITY_6000_3_OR_NEWER
+            var animatingItem = treeViewAnimatorSetup?.GetMemberValue("item");
+            var animatingItemId = animatingItem?.GetMemberValue("id");
+            animatingItemId_fromTreeViewExpandAnimator = animatingItemId switch
+            {
+                EntityId entityId => entityId.ToLegacyInstanceId(),
+                int instanceId => instanceId,
+                _ => 0,
+            };
+#else
             animatingItemId_fromTreeViewExpandAnimator = treeViewAnimatorSetup?.GetMemberValue("item").GetMemberValue<int>("id") ?? 0;
+#endif
 
         }
 

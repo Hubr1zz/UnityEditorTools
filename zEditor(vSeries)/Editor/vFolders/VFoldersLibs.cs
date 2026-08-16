@@ -24,7 +24,9 @@ namespace VFolders.Libs
         public static int GetLegacyInstanceId(this Object target)
         {
 #if UNITY_6000_5_OR_NEWER
-            return unchecked((int)EntityId.ToULong(target.GetEntityId()));
+            var instanceId = target.InvokeMethod<int>("GetInstanceID");
+            entityIdsByLegacyInstanceId[instanceId] = target.GetEntityId();
+            return instanceId;
 #else
             return target.GetInstanceID();
 #endif
@@ -36,7 +38,14 @@ namespace VFolders.Libs
         public static EntityId ToEntityId(this int instanceId)
         {
 #if UNITY_6000_5_OR_NEWER
-            return EntityId.FromULong(unchecked((uint)instanceId));
+            if (entityIdsByLegacyInstanceId.TryGetValue(instanceId, out var cachedEntityId) && EditorUtility.EntityIdToObject(cachedEntityId)) return cachedEntityId;
+
+            var target = typeof(EditorUtility).InvokeMethod("InstanceIDToObject", instanceId) as Object;
+            if (!target) return EntityId.FromULong(unchecked((uint)instanceId));
+
+            var entityId = target.GetEntityId();
+            entityIdsByLegacyInstanceId[instanceId] = entityId;
+            return entityId;
 #else
             return instanceId;
 #endif
@@ -45,7 +54,12 @@ namespace VFolders.Libs
         public static int ToLegacyInstanceId(this EntityId entityId)
         {
 #if UNITY_6000_5_OR_NEWER
-            return unchecked((int)EntityId.ToULong(entityId));
+            var target = EditorUtility.EntityIdToObject(entityId);
+            if (target) return target.GetLegacyInstanceId();
+
+            var instanceId = unchecked((int)EntityId.ToULong(entityId));
+            entityIdsByLegacyInstanceId[instanceId] = entityId;
+            return instanceId;
 #else
             return entityId;
 #endif
@@ -54,6 +68,9 @@ namespace VFolders.Libs
         public static EntityId ToIdType(this int instanceId) => instanceId.ToEntityId();
         public static EntityId[] ToIdTypes(this IEnumerable<int> instanceIds) => instanceIds.Select(instanceId => instanceId.ToEntityId()).ToArray();
         public static List<int> ToLegacyInstanceIds(this IEnumerable<EntityId> entityIds) => entityIds.Select(entityId => entityId.ToLegacyInstanceId()).ToList();
+#if UNITY_6000_5_OR_NEWER
+        private static readonly Dictionary<int, EntityId> entityIdsByLegacyInstanceId = new();
+#endif
 #else
         public static int ToIdType(this int instanceId) => instanceId;
         public static int[] ToIdTypes(this IEnumerable<int> instanceIds) => instanceIds.ToArray();

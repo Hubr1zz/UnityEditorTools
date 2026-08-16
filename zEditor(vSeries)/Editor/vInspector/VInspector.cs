@@ -1011,7 +1011,12 @@ namespace VInspector
                 var curOrderHash = components.Aggregate(17, (hash, element) => hash * 31 + (element?.GetHashCode() ?? 0));
 
                 if (curOrderHash != componentOrderHashes_byEditor.GetValueOrDefault(editor))
+                {
+                    foreach (var componentHeader in componentHeaders_byComponent.Values)
+                        componentHeader.Detach();
+
                     componentHeaders_byComponent.Clear();
+                }
 
                 componentOrderHashes_byEditor[editor] = curOrderHash;
 

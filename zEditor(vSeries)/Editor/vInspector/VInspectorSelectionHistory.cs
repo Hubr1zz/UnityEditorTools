@@ -56,11 +56,12 @@ namespace VInspector
         {
             if (ignoreThisSelectionChange) { ignoreThisSelectionChange = false; return; }
 
-            if (curEvent.modifiers == EventModifiers.Command && curEvent.keyCode == KeyCode.Z) return;
-            if (curEvent.modifiers == (EventModifiers.Command | EventModifiers.Shift) && curEvent.keyCode == KeyCode.Z) return;
+            var currentEvent = Event.current;
+            if (currentEvent != null && currentEvent.modifiers == EventModifiers.Command && currentEvent.keyCode == KeyCode.Z) return;
+            if (currentEvent != null && currentEvent.modifiers == (EventModifiers.Command | EventModifiers.Shift) && currentEvent.keyCode == KeyCode.Z) return;
 
-            if (curEvent.modifiers == EventModifiers.Control && curEvent.keyCode == KeyCode.Z) return;
-            if (curEvent.modifiers == EventModifiers.Control && curEvent.keyCode == KeyCode.Y) return;
+            if (currentEvent != null && currentEvent.modifiers == EventModifiers.Control && currentEvent.keyCode == KeyCode.Z) return;
+            if (currentEvent != null && currentEvent.modifiers == EventModifiers.Control && currentEvent.keyCode == KeyCode.Y) return;
 
 
             instance.RecordUndo(Undo.GetCurrentGroupName());

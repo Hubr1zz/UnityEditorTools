@@ -135,6 +135,41 @@ namespace ZEditorTools
             }
         }
 
+        internal static string DecorationModelPath => AssetDatabase.GetAssetPath(DecorationModel);
+
+        internal static bool TrySetDecorationModelPath(string path, out string error)
+        {
+            var normalizedPath = path?.Trim().Replace('\\', '/');
+            if (string.IsNullOrEmpty(normalizedPath))
+            {
+                error = "模型路径不能为空。";
+                return false;
+            }
+
+            if (!normalizedPath.StartsWith("Assets/", StringComparison.OrdinalIgnoreCase) && !normalizedPath.StartsWith("Packages/", StringComparison.OrdinalIgnoreCase))
+            {
+                error = "模型路径必须位于 Assets 或 Packages 下。";
+                return false;
+            }
+
+            var model = AssetDatabase.LoadAssetAtPath<GameObject>(normalizedPath);
+            if (model == null)
+            {
+                error = "该路径没有可用的 GameObject、Prefab 或模型资源。";
+                return false;
+            }
+
+            DecorationModel = model;
+            error = string.Empty;
+            return true;
+        }
+
+        internal static void ResetDecorationModel()
+        {
+            EditorPrefs.DeleteKey(ModelGuidPref);
+            DecorationModel = AssetDatabase.LoadAssetAtPath<GameObject>(ModelPath);
+        }
+
         private static GameObject LoadConfiguredSourceModel()
         {
             var guid = EditorPrefs.GetString(ModelGuidPref, string.Empty);
@@ -1399,6 +1434,8 @@ namespace ZEditorTools
         private static ModelPreviewLightingWindow instance;
         private EditorWindow ownerWindow;
         private Vector2 scrollPosition;
+        private string decorationModelPath;
+        private string decorationModelPathError;
 
         internal static void Open(EditorWindow owner, Rect localActivatorRect)
         {
@@ -1419,7 +1456,7 @@ namespace ZEditorTools
             instance.ownerWindow = owner;
             var screenRect = localActivatorRect;
             screenRect.position += owner.position.position;
-            var popupSize = new Vector2(350f, 300f);
+            var popupSize = new Vector2(380f, 340f);
             var popupPosition = new Vector2(
                 screenRect.xMin,
                 Mathf.Max(0f, screenRect.yMin - popupSize.y - 4f));
@@ -1431,6 +1468,8 @@ namespace ZEditorTools
         private void OnEnable()
         {
             instance = this;
+            decorationModelPath = ModelPreviewBackground.DecorationModelPath;
+            decorationModelPathError = string.Empty;
             EditorApplication.update += CloseWhenOwnerIsGone;
         }
 
@@ -1464,10 +1503,35 @@ namespace ZEditorTools
 
             EditorGUI.BeginChangeCheck();
             var decorationModel = EditorGUILayout.ObjectField(
-                "装饰模型", ModelPreviewBackground.DecorationModel,
+                "模型资源", ModelPreviewBackground.DecorationModel,
                 typeof(GameObject), false) as GameObject;
             if (EditorGUI.EndChangeCheck())
+            {
                 ModelPreviewBackground.DecorationModel = decorationModel;
+                decorationModelPath = ModelPreviewBackground.DecorationModelPath;
+                decorationModelPathError = string.Empty;
+            }
+
+            decorationModelPath = EditorGUILayout.TextField("模型路径", decorationModelPath);
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                GUILayout.Space(EditorGUIUtility.labelWidth);
+                if (GUILayout.Button("应用路径"))
+                {
+                    if (ModelPreviewBackground.TrySetDecorationModelPath(decorationModelPath, out decorationModelPathError))
+                        decorationModelPath = ModelPreviewBackground.DecorationModelPath;
+                }
+
+                if (GUILayout.Button("恢复默认模型"))
+                {
+                    ModelPreviewBackground.ResetDecorationModel();
+                    decorationModelPath = ModelPreviewBackground.DecorationModelPath;
+                    decorationModelPathError = string.Empty;
+                }
+            }
+
+            if (!string.IsNullOrEmpty(decorationModelPathError))
+                EditorGUILayout.HelpBox(decorationModelPathError, MessageType.Error);
 
             EditorGUILayout.Space(6f);
             EditorGUI.BeginChangeCheck();

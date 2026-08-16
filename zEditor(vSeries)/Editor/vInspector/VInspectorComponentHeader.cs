@@ -225,7 +225,7 @@ namespace VInspector
 
                 var position = EditorGUIUtility.GUIToScreenPoint(headerRect.position + (curEvent.mousePosition - mousePressedOnBackground_initPos));
 
-                VInspectorComponentWindow.CreateDraggedInstance(component, position, headerRect.width);
+                VInspectorComponentWindow.CreateDraggedInstance(component, position, headerRect.width, curEvent.mousePosition_screenSpace);
 
 
 
@@ -343,6 +343,50 @@ namespace VInspector
         public Vector2 mousePressedOnBackground_initPos;
         public Vector2 mousePressedOnScriptIcon_initPos;
 
+#if UNITY_6000_3_OR_NEWER
+        private bool mousePressedOnHeaderElement;
+        private Vector2 mousePressedOnHeaderElementInitialPosition;
+
+        private void OnHeaderMouseDown(MouseDownEvent currentEvent)
+        {
+            if (currentEvent.button != 0) return;
+            if (!headerRect.Contains(currentEvent.localMousePosition)) return;
+            if (buttonMaskRect.Contains(currentEvent.localMousePosition)) return;
+
+            mousePressedOnHeaderElement = true;
+            mousePressedOnHeaderElementInitialPosition = currentEvent.localMousePosition;
+        }
+
+        private void OnHeaderMouseMove(MouseMoveEvent currentEvent)
+        {
+            if (!mousePressedOnHeaderElement) return;
+            if ((currentEvent.pressedButtons & 1) == 0)
+            {
+                mousePressedOnHeaderElement = false;
+                return;
+            }
+            if (!currentEvent.altKey) return;
+            if ((currentEvent.localMousePosition - mousePressedOnHeaderElementInitialPosition).sqrMagnitude < 4) return;
+            if (!VInspectorMenu.componentWindowsEnabled) return;
+            if (VInspectorComponentWindow.draggedInstance != null) return;
+
+            var popupPositionLocal = headerRect.position + currentEvent.localMousePosition - mousePressedOnHeaderElementInitialPosition;
+            var popupPositionScreen = window.position.position + imguiContainer.LocalToWorld(popupPositionLocal);
+            var mousePositionScreen = window.position.position + currentEvent.mousePosition;
+            VInspectorComponentWindow.CreateDraggedInstance(component, popupPositionScreen, headerRect.width, mousePositionScreen);
+
+            mousePressedOnHeaderElement = false;
+            mousePressedOnBackground = false;
+            currentEvent.StopImmediatePropagation();
+        }
+
+        private void OnHeaderMouseUp(MouseUpEvent currentEvent)
+        {
+            if (currentEvent.button == 0)
+                mousePressedOnHeaderElement = false;
+        }
+#endif
+
         public Rect headerRect
         {
             get
@@ -371,7 +415,11 @@ namespace VInspector
 
         public void Update()
         {
-            if (imguiContainer is VisualElement v && v.panel == null) { imguiContainer.onGUIHandler = defaultHeaderGUIAction; imguiContainer = null; }
+            if (imguiContainer is VisualElement v && v.panel == null)
+            {
+                Detach();
+                return;
+            }
             if (imguiContainer?.onGUIHandler.Method.DeclaringType == typeof(VInspectorComponentHeader)) return;
             if (imguiContainer?.onGUIHandler.Method.DeclaringType.FullName.StartsWith("Sisus") == true) return;
             if (typeof(ScriptableObject).IsAssignableFrom(component.GetType())) return;
@@ -396,6 +444,18 @@ namespace VInspector
             {
                 if (element == null) return;
 
+#if UNITY_6000_5_OR_NEWER
+                if (element.GetType().Name == "EditorElement" && element.GetFieldValue("m_EditorTarget") is UnityEngine.Object editorTarget && editorTarget == component)
+                {
+                    imguiContainer = element.GetFieldValue("m_HeaderIMGUIContainer") as IMGUIContainer;
+
+                    var componentEditor = element.GetFieldValue("m_EditorCache") is Editor[] editorCache ? editorCache.FirstOrDefault(r => r && r.target == component) : null;
+                    if (componentEditor != null && (editingMultiselection = componentEditor.targets.Length > 1))
+                        multiselectedComponents = componentEditor.targets.OfType<Component>().ToList();
+
+                    if (imguiContainer != null) return;
+                }
+#else
                 if (element.GetType().Name == "EditorElement")
                 {
                     IMGUIContainer curHeaderImguiContainer = null;
@@ -419,6 +479,7 @@ namespace VInspector
                     }
 
                 }
+#endif
 
                 foreach (var r in element.Children())
                     if (imguiContainer == null)
@@ -431,12 +492,37 @@ namespace VInspector
 
                 defaultHeaderGUIAction = imguiContainer.onGUIHandler;
                 imguiContainer.onGUIHandler = OnGUI;
+#if UNITY_6000_3_OR_NEWER
+                imguiContainer.RegisterCallback<MouseDownEvent>(OnHeaderMouseDown, TrickleDown.TrickleDown);
+                imguiContainer.RegisterCallback<MouseMoveEvent>(OnHeaderMouseMove, TrickleDown.TrickleDown);
+                imguiContainer.RegisterCallback<MouseUpEvent>(OnHeaderMouseUp, TrickleDown.TrickleDown);
+#endif
             }
 
             fixWrongWindow();
             findHeader(window.rootVisualElement);
             setupGUICallbacks();
 
+        }
+
+        public void Detach()
+        {
+            if (imguiContainer == null) return;
+
+#if UNITY_6000_3_OR_NEWER
+            imguiContainer.UnregisterCallback<MouseDownEvent>(OnHeaderMouseDown, TrickleDown.TrickleDown);
+            imguiContainer.UnregisterCallback<MouseMoveEvent>(OnHeaderMouseMove, TrickleDown.TrickleDown);
+            imguiContainer.UnregisterCallback<MouseUpEvent>(OnHeaderMouseUp, TrickleDown.TrickleDown);
+#endif
+            if (imguiContainer.onGUIHandler == OnGUI)
+                imguiContainer.onGUIHandler = defaultHeaderGUIAction;
+
+            imguiContainer = null;
+            defaultHeaderGUIAction = null;
+            mousePressedOnBackground = false;
+#if UNITY_6000_3_OR_NEWER
+            mousePressedOnHeaderElement = false;
+#endif
         }
 
         public bool editingMultiselection;

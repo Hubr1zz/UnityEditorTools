@@ -188,7 +188,18 @@ namespace VFolders
 
         public int GetRowIndex(int instanceId)
         {
+#if UNITY_6000_3_OR_NEWER
+            var rows = treeViewControllerData.GetMemberValue<IList>("m_Rows");
+            for (int i = 0; i < rows.Count; i++)
+            {
+                if (rows[i] is TreeViewItem row && row.id.ToLegacyInstanceId() == instanceId)
+                    return i;
+            }
+
+            return -1;
+#else
             return treeViewControllerData.InvokeMethod<int>("GetRow", instanceId.ToIdType());
+#endif
         }
 
 
@@ -440,23 +451,9 @@ namespace VFolders
             var rowCount = rows.Count;
             var maxScrollPos = rowCount * 16 - window.position.height + (isOneColumn ? 49.9f : 45.9f);
 
-#if UNITY_6000_3_OR_NEWER
-            var targetId = getId(path);
-            var rowIndex = -1;
-            for (int i = 0; i < rows.Count; i++)
-            {
-                if (!(rows[i] is TreeViewItem row) || row.id.ToLegacyInstanceId() != targetId)
-                    continue;
-
-                rowIndex = i;
-                break;
-            }
-
+            var rowIndex = GetRowIndex(getId(path));
             if (rowIndex < 0)
                 return;
-#else
-            var rowIndex = treeViewControllerData.InvokeMethod<int>("GetRow", getId(path));
-#endif
             var rowPos = rowIndex * 16f + (isOneColumn ? 11 : 23);
 
             var scrollAreaHeight = window.GetMemberValue<Rect>("m_TreeViewRect").height;
@@ -498,31 +495,14 @@ namespace VFolders
 
         public void OpenFolder(string path)
         {
-            // update search
-            window.GetMemberValue("m_SearchFilter").InvokeMethod("ClearSearch");
-            window.GetMemberValue("m_SearchFilter").SetMemberValue("folders", new[] { path });
+            var folder = AssetDatabase.LoadAssetAtPath<DefaultAsset>(path);
+            if (!folder) return;
 
-
-            // update folder tree
-            window.GetMemberValue("m_FolderTree").InvokeMethod("SetSelection", new[] { AssetDatabase.LoadAssetAtPath<DefaultAsset>(path).GetLegacyInstanceId() }, false);
-
-
-            // update list area
-            var listAreaRect = window.GetMemberValue("m_ListAreaRect");
-            var searchFilter = window.GetMemberValue("m_SearchFilter");
-            var checkThumbnails = false;
-            var assetToInstanceId = (System.Func<string, int>)((s) => typeof(AssetDatabase).InvokeMethod<int>("GetMainAssetInstanceID", s));
-
-            window.GetMemberValue("m_ListArea")?.InvokeMethod("InitForSearch", listAreaRect, HierarchyType.Assets, searchFilter, checkThumbnails, assetToInstanceId);
-
-
-            // updat breadcrumbs
-            window.GetMemberValue<IList>("m_BreadCrumbs").Clear();
-
-
-
-            // pretty much the same as ProjectBrowser.ShowFolderContents()
-            // but without m_FolderTree.SetSelection()
+#if UNITY_6000_5_OR_NEWER
+            window.InvokeMethod("ShowFolderContents", folder.GetEntityId(), false);
+#else
+            window.InvokeMethod("ShowFolderContents", folder.GetLegacyInstanceId().ToIdType(), false);
+#endif
 
         }
 

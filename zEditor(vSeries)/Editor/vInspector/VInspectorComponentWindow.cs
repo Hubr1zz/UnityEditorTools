@@ -468,15 +468,11 @@ namespace VInspector
 
 
 
-        public static void CreateDraggedInstance(Component component, Vector2 windowPosition, float windowWidth)
+        public static void CreateDraggedInstance(Component component, Vector2 windowPosition, float windowWidth, Vector2 dragStartMousePosition)
         {
             draggedInstance = ScriptableObject.CreateInstance<VInspectorComponentWindow>();
 
-            draggedInstance.ShowPopup();
             draggedInstance.Init(component);
-            draggedInstance.Focus();
-
-
             draggedInstance.wantsMouseMove = true;
 
             // draggedInstance.minSize = new Vector2(300, 50); // will make window resizeable on mac, but not on windows
@@ -486,8 +482,11 @@ namespace VInspector
             draggedInstance.position = Rect.zero.SetPos(windowPosition).SetWidth(windowWidth).SetHeight(200);
             draggedInstance.prevHeight = draggedInstance.position.height;
 
-            draggedInstance.dragStartMousePos = curEvent.mousePosition_screenSpace;
+            draggedInstance.dragStartMousePos = dragStartMousePosition;
             draggedInstance.dragStartWindowPos = windowPosition;
+
+            draggedInstance.ShowPopup();
+            draggedInstance.Focus();
 
         }
 
