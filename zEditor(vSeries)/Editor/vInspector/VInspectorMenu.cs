@@ -11,7 +11,7 @@ using static VInspector.Libs.VGUI;
 
 namespace VInspector
 {
-    class VInspectorMenu
+    public class VInspectorMenu
     {
         public static bool navigationBarEnabled { get => EditorPrefsCached.GetBool("vInspector-navigationBarEnabled", false); set => EditorPrefsCached.SetBool("vInspector-navigationBarEnabled", value); }
         public static bool copyPasteButtonsEnabled { get => EditorPrefsCached.GetBool("vInspector-copyPasteButtonsEnabled", false); set => EditorPrefsCached.SetBool("vInspector-copyPasteButtonsEnabled", value); }
@@ -53,6 +53,7 @@ namespace VInspector
 
 
 
+#if false // Settings are exposed through Tools/EditorTools/Settings.
         const string dir = "Tools/EditorTools/vInspector/";
 #if UNITY_EDITOR_OSX
         const string cmd = "Cmd";
@@ -147,6 +148,7 @@ namespace VInspector
         [MenuItem(dir + "More", true, 10001)] static bool dadsadsdasas123() => false;
 
         [MenuItem(disablePlugin, true, 100001)] static bool dadsaddssdsdaasadsadadsdasadsas() { Menu.SetChecked(disablePlugin, pluginDisabled); return true; }
+#endif
 
 
 

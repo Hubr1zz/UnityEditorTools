@@ -23,6 +23,8 @@ namespace VFavorites
 
         static void WrappedOnGUI(object _)
         {
+            TrackActivationKey();
+
             if (wrappedBrowser?.GetType() != t_BrowserWindow) { originalBrowserGUI(); return; }
 
 
@@ -1342,7 +1344,7 @@ namespace VFavorites
 
         static float currentOpacity;
         static float currentOpacityDerivative;
-        static float targetOpacity => curEvent.holdingAlt || renamingPage || draggingItemFromPageToOutside || isWrappedBrowserLocked ? 1 : 0; // holdingAlt instead of shortcutPressed to prevent unwrapping due to incorrect event modifiers on key down on mac
+        static float targetOpacity => shortcutPressed || renamingPage || draggingItemFromPageToOutside || isWrappedBrowserLocked ? 1 : 0;
         static bool animatingOpacity => currentOpacity.DistanceTo(targetOpacity) > .01f;
 
 
@@ -1579,6 +1581,8 @@ namespace VFavorites
 
         static void UpdateGUIWrapping() // called from EditorApplicaton.update 
         {
+            TrackActivationKey();
+
             void wrap()
             {
                 if (wrappedBrowser) return;
@@ -1655,23 +1659,54 @@ namespace VFavorites
 
         static bool shortcutPressed
         {
-            get
-            {
-                if (VFavoritesMenu.activeOnAltEnabled)
-                    return curEvent.holdingAlt;
-
-                if (VFavoritesMenu.activeOnAltShiftEnabled)
-                    return curEvent.modifiers == (EventModifiers.Alt | EventModifiers.Shift);
-
-                if (VFavoritesMenu.activeOnCtrlAltEnabled)
-                    if (Application.platform == RuntimePlatform.OSXEditor)
-                        return curEvent.modifiers == (EventModifiers.Command | EventModifiers.Alt);
-                    else
-                        return curEvent.modifiers == (EventModifiers.Control | EventModifiers.Alt);
-
-                return false;
-            }
+            get => activationKeyHeld;
         }
+
+        static void TrackActivationKey()
+        {
+            var configuredKey = VFavoritesMenu.activationKey;
+
+            if (configuredKey != trackedActivationKey)
+            {
+                trackedActivationKey = configuredKey;
+                activationKeyHeld = false;
+            }
+
+            if (!UnityEditorInternal.InternalEditorUtility.isApplicationActive)
+            {
+                activationKeyHeld = false;
+                return;
+            }
+
+            var currentEvent = typeof(Event).GetFieldValue<Event>("s_Current");
+            if (currentEvent == null) return;
+
+            if (configuredKey == VFavoritesActivationKey.Alt)
+            {
+                SetActivationKeyHeld(currentEvent.alt);
+                return;
+            }
+
+            var keyCode = configuredKey == VFavoritesActivationKey.Space ? KeyCode.Space : KeyCode.Tab;
+            if (currentEvent.keyCode != keyCode) return;
+            if (currentEvent.rawType == EventType.KeyDown)
+                SetActivationKeyHeld(true);
+            if (currentEvent.rawType == EventType.KeyUp)
+                SetActivationKeyHeld(false);
+        }
+
+        static void SetActivationKeyHeld(bool value)
+        {
+            if (activationKeyHeld == value) return;
+
+            activationKeyHeld = value;
+
+            if (EditorWindow.mouseOverWindow?.GetType() == t_BrowserWindow || wrappedBrowser)
+                EditorApplication.RepaintProjectWindow();
+        }
+
+        static bool activationKeyHeld;
+        static VFavoritesActivationKey trackedActivationKey = (VFavoritesActivationKey)(-1);
 
 
 
@@ -1833,19 +1868,7 @@ namespace VFavorites
 
 
 
-        static void RepaintOnAltUp() // Update 
-        {
-            var lastEvent = typeof(Event).GetFieldValue<Event>("s_Current");
 
-            if (wasAlt && !lastEvent.alt)
-                if (EditorWindow.mouseOverWindow?.GetType() == t_BrowserWindow)
-                    EditorApplication.RepaintProjectWindow();
-
-            wasAlt = lastEvent.alt;
-
-        }
-
-        static bool wasAlt;
 
 
 
@@ -1874,8 +1897,8 @@ namespace VFavorites
                 EditorApplication.update -= UpdateAnimations;
                 EditorApplication.update += UpdateAnimations;
 
-                EditorApplication.update -= RepaintOnAltUp;
-                EditorApplication.update += RepaintOnAltUp;
+                var globalEventHandler = typeof(EditorApplication).GetFieldValue<EditorApplication.CallbackFunction>("globalEventHandler");
+                typeof(EditorApplication).SetFieldValue("globalEventHandler", (globalEventHandler - TrackActivationKey) + TrackActivationKey);
 
 
 

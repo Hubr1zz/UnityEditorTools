@@ -10,7 +10,7 @@ using static VFolders.Libs.VGUI;
 
 namespace VFolders
 {
-    class VFoldersMenu
+    public class VFoldersMenu
     {
 
         public static bool navigationBarEnabled { get => EditorPrefsCached.GetBool("vFolders-navigationBarEnabled", true); set => EditorPrefsCached.SetBool("vFolders-navigationBarEnabled", value); }
@@ -32,6 +32,7 @@ namespace VFolders
 
 
 
+#if false // Settings are exposed through Tools/EditorTools/Settings.
         const string dir = "Tools/EditorTools/vFolders/";
 
         const string navigationBar = dir + "Navigation bar";
@@ -104,6 +105,7 @@ namespace VFolders
 
         [MenuItem(disablePlugin, false, 10001)] static void dadsadsdasadasdasdsadadsas() { pluginDisabled = !pluginDisabled; UnityEditor.Compilation.CompilationPipeline.RequestScriptCompilation(); }
         [MenuItem(disablePlugin, true, 10001)] static bool dadsaddssdaasadsadadsdasadsas() { Menu.SetChecked(disablePlugin, pluginDisabled); return true; }
+#endif
 
 
 

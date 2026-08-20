@@ -11,6 +11,13 @@ using static VFavorites.Libs.VGUI;
 
 namespace VFavorites
 {
+    public enum VFavoritesActivationKey
+    {
+        Space,
+        Alt,
+        Tab
+    }
+
     public class VFavoritesMenu
     {
 
@@ -23,16 +30,22 @@ namespace VFavorites
         public static bool embeddedPanelUsesWindowUI { get => EditorPrefsCached.GetBool("vFavorites-embeddedPanelUsesWindowUI", true); set => EditorPrefsCached.SetBool("vFavorites-embeddedPanelUsesWindowUI", value); }
         public static bool debugLoggingEnabled { get => EditorPrefsCached.GetBool("vFavorites-debugLoggingEnabled", false); set => EditorPrefsCached.SetBool("vFavorites-debugLoggingEnabled", value); }
 
-        public static int activeOnKeyCombination { get => EditorPrefsCached.GetInt("vFavorites-activeOnKeyCombination", 0); set => EditorPrefsCached.SetInt("vFavorites-activeOnKeyCombination", value); }
-        public static bool activeOnAltEnabled { get => activeOnKeyCombination == 0; set => activeOnKeyCombination = 0; }
-        public static bool activeOnAltShiftEnabled { get => activeOnKeyCombination == 1; set => activeOnKeyCombination = 1; }
-        public static bool activeOnCtrlAltEnabled { get => activeOnKeyCombination == 2; set => activeOnKeyCombination = 2; }
+        public static VFavoritesActivationKey activationKey
+        {
+            get
+            {
+                var value = EditorPrefsCached.GetInt("vFavorites-activationKey", (int)VFavoritesActivationKey.Space);
+                return value >= (int)VFavoritesActivationKey.Space && value <= (int)VFavoritesActivationKey.Tab ? (VFavoritesActivationKey)value : VFavoritesActivationKey.Space;
+            }
+            set => EditorPrefsCached.SetInt("vFavorites-activationKey", (int)value);
+        }
 
         public static bool pluginDisabled { get => EditorPrefsCached.GetBool("vFavorites-pluginDisabled", false); set => EditorPrefsCached.SetBool("vFavorites-pluginDisabled", value); }
 
 
 
 
+#if false // Settings are exposed through Tools/EditorTools/Settings.
         const string dir = "Tools/EditorTools/vFavorites/";
 
         const string pageScroll = dir + "Scroll to browse items";
@@ -109,6 +122,7 @@ namespace VFavorites
 
         [MenuItem(disablePlugin, false, 100001)] static void dadsadsdasadasdasdsadadsas() { pluginDisabled = !pluginDisabled; UnityEditor.Compilation.CompilationPipeline.RequestScriptCompilation(); }
         [MenuItem(disablePlugin, true, 100001)] static bool dadsaddssdaasadsadadsdasadsas() { Menu.SetChecked(disablePlugin, pluginDisabled); return true; }
+#endif
 
     }
 }

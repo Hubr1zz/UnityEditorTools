@@ -1,0 +1,22 @@
+{
+    "name": "ZEditorTools.Settings",
+    "rootNamespace": "ZEditorTools",
+    "references": [
+        "VFavorites",
+        "VFolders",
+        "VHierarchy",
+        "VInspector",
+        "VTabs"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
