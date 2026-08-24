@@ -11,7 +11,7 @@ zEditor Tools is a collection of Unity Editor productivity tools.
 In Unity, open **Window > Package Manager**, choose **Add package from git URL...**, and use:
 
 ```text
-https://github.com/Hubr1zz/UnityEditorTools.git?path=/zEditor(vSeries)#v0.1.0
+https://github.com/Hubr1zz/UnityEditorTools.git?path=/zEditor(vSeries)#v0.1.1
 ```
 
 The `path` query points Unity to the package subfolder in this repository. The tag is optional, but using a tag keeps the installed version reproducible.
@@ -19,7 +19,7 @@ The `path` query points Unity to the package subfolder in this repository. The t
 `SceneTools` is a separate package in the same repository. To install it independently, use:
 
 ```text
-https://github.com/Hubr1zz/UnityEditorTools.git?path=/SceneTools#v0.1.0
+https://github.com/Hubr1zz/UnityEditorTools.git?path=/SceneTools#v0.1.1
 ```
 
 ## Update from Git

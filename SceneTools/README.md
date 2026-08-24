@@ -11,7 +11,7 @@ Optional Unity Editor tools for Scene View and hierarchy workflows.
 In Unity, open **Window > Package Manager**, choose **Add package from git URL...**, and use:
 
 ```text
-https://github.com/Hubr1zz/UnityEditorTools.git?path=/SceneTools#v0.1.0
+https://github.com/Hubr1zz/UnityEditorTools.git?path=/SceneTools#v0.1.1
 ```
 
 This package is maintained in the same repository as zEditor Tools, but it is installed independently so users can choose whether to include it.
