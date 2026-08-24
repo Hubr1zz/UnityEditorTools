@@ -53,7 +53,6 @@ namespace VInspector
             }
 
             GetActiveComponents(gameObject);
-            RequiredHeight = CalculateRequiredHeight(gameObject, GetAvailableWidth());
             ApplyComponentVisibility();
             return true;
         }
@@ -61,6 +60,14 @@ namespace VInspector
         public void OnGUI(Rect rect)
         {
             if (!gameObject) return;
+
+            var availableWidth = rect.width > 0f ? rect.width : GetAvailableWidth();
+            var requiredHeight = CalculateRequiredHeight(gameObject, availableWidth);
+            if (!Mathf.Approximately(RequiredHeight, requiredHeight))
+            {
+                RequiredHeight = requiredHeight;
+                window.Repaint();
+            }
 
             var components = gameObject.GetComponents<Component>().Where(component => component).ToArray();
             var activeComponents = GetActiveComponents(gameObject);
