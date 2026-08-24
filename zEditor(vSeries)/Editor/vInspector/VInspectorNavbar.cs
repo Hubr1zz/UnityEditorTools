@@ -78,7 +78,7 @@ namespace VInspector
             {
                 if (!curEvent.isRepaint) return;
 
-                var nameRect = navbarRect.MoveX(30 * 2 + 1);
+                var nameRect = navbarRect.MoveX(VInspectorMenu.componentTabsEnabled ? 180 : 30 * 3 + 3);
 
                 var minScrollPos = 10;
                 var maxScrollPos = 20;
@@ -169,6 +169,30 @@ namespace VInspector
                 VInspectorSelectionHistory.instance.MoveForward();
 
             }
+            void componentTabsButton()
+            {
+                var buttonRect = navbarRect.SetWidth(30).MoveX(61).AddWidthFromMid(-6);
+                var colorNormal = Greyscale(isDarkTheme ? .75f : .2f);
+                var colorHovered = Greyscale(isDarkTheme ? 1f : .2f);
+                var colorPressed = Greyscale(isDarkTheme ? .75f : .5f);
+
+                if (VInspectorMenu.componentTabsEnabled && curEvent.isRepaint)
+                    buttonRect.Resize(2).DrawRounded(Greyscale(isDarkTheme ? .35f : .68f), 4);
+
+                if (!IconButton(buttonRect, "UnityEditor.InspectorWindow", 16, colorNormal, colorHovered, colorPressed)) return;
+
+                VInspectorMenu.componentTabsEnabled = !VInspectorMenu.componentTabsEnabled;
+                VInspectorMenu.RepaintInspectors();
+            }
+            void deselectAllButton()
+            {
+                if (!VInspectorMenu.componentTabsEnabled) return;
+
+                var buttonRect = navbarRect.SetWidth(84).MoveX(92).SetHeightFromMid(20);
+                if (!GUI.Button(buttonRect, "Deselect all", EditorStyles.toolbarButton)) return;
+
+                VInspector.DeselectAllComponentTabs(window);
+            }
 
             void bookmarks()
             {
@@ -222,6 +246,8 @@ namespace VInspector
 
             moveBackButton();
             moveForwardButton();
+            componentTabsButton();
+            deselectAllButton();
 
             bookmarks();
 

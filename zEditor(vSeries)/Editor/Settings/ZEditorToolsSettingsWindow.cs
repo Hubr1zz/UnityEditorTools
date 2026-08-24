@@ -143,6 +143,7 @@ namespace ZEditorTools
             {
                 DrawSection("组件界面");
                 DrawToggle("导航栏", "在 Inspector 顶部显示选择历史和导航控件。", () => VInspectorMenu.navigationBarEnabled, value => VInspectorMenu.navigationBarEnabled = value, RefreshInspector);
+                DrawToggle("组件标签模式", "在导航栏下用标签选择要同时显示的组件；每个 GameObject 独立保留自己的激活状态。启用时会同时显示导航栏。", () => VInspectorMenu.componentTabsEnabled, value => VInspectorMenu.componentTabsEnabled = value, RefreshInspector);
                 DrawToggle("复制/粘贴按钮", "在组件标题栏提供复制和粘贴组件值的按钮。", () => VInspectorMenu.copyPasteButtonsEnabled, value => VInspectorMenu.copyPasteButtonsEnabled = value, RefreshInspector);
                 DrawToggle("运行时保存按钮", "在 Play Mode 中提供保存组件状态的按钮。", () => VInspectorMenu.playmodeSaveButtonEnabled, value => VInspectorMenu.playmodeSaveButtonEnabled = value, RefreshInspector);
                 DrawToggle("组件浮动窗口", "允许把单个组件打开为独立浮动窗口。", () => VInspectorMenu.componentWindowsEnabled, value => VInspectorMenu.componentWindowsEnabled = value, RefreshInspector);

@@ -14,6 +14,7 @@ namespace VInspector
     public class VInspectorMenu
     {
         public static bool navigationBarEnabled { get => EditorPrefsCached.GetBool("vInspector-navigationBarEnabled", false); set => EditorPrefsCached.SetBool("vInspector-navigationBarEnabled", value); }
+        public static bool componentTabsEnabled { get => EditorPrefsCached.GetBool("vInspector-componentTabsEnabled", false); set => EditorPrefsCached.SetBool("vInspector-componentTabsEnabled", value); }
         public static bool copyPasteButtonsEnabled { get => EditorPrefsCached.GetBool("vInspector-copyPasteButtonsEnabled", false); set => EditorPrefsCached.SetBool("vInspector-copyPasteButtonsEnabled", value); }
         public static bool playmodeSaveButtonEnabled { get => EditorPrefsCached.GetBool("vInspector-saveInPlaymodeButtonEnabled", false); set => EditorPrefsCached.SetBool("vInspector-saveInPlaymodeButtonEnabled", value); }
         public static bool componentWindowsEnabled { get => EditorPrefsCached.GetBool("vInspector-componentWindowsEnabled", componentWindowsEnabledByDefault); set => EditorPrefsCached.SetBool("vInspector-componentWindowsEnabled", value); }
