@@ -476,6 +476,9 @@ namespace VHierarchy
 
         static void Shortcuts()
         {
+#if UNITY_6000_5_OR_NEWER
+            VHierarchyGUI.HandlePendingAltClick();
+#endif
             if (!curEvent.isKeyDown) return;
             if (curEvent.keyCode == KeyCode.None) return;
             if (EditorWindow.mouseOverWindow is not EditorWindow hoveredWindow) return;

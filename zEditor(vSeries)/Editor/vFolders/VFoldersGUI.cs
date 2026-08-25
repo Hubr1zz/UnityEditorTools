@@ -667,6 +667,9 @@ namespace VFolders
                 {
                     if (!curEvent.isMouseDown) return;
 
+#if UNITY_6000_5_OR_NEWER
+                    BeginPendingAltClick(mouseUp);
+#endif
                     curEvent.Use();
 
                 }
@@ -715,7 +718,9 @@ namespace VFolders
                 }
 
                 mouseDown();
+#if !UNITY_6000_5_OR_NEWER
                 mouseUp();
+#endif
 
             }
 
@@ -1097,6 +1102,9 @@ namespace VFolders
                 {
                     if (!curEvent.isMouseDown) return;
 
+#if UNITY_6000_5_OR_NEWER
+                    BeginPendingAltClick(mouseUp);
+#endif
                     curEvent.Use();
 
                 }
@@ -1132,7 +1140,9 @@ namespace VFolders
                 }
 
                 mouseDown();
+#if !UNITY_6000_5_OR_NEWER
                 mouseUp();
+#endif
 
             }
 
@@ -1147,6 +1157,49 @@ namespace VFolders
         }
 
         Rect lastVisibleSelectedCellRect;
+
+#if UNITY_6000_5_OR_NEWER
+        static void BeginPendingAltClick(System.Action action)
+        {
+            pendingAltClick = action;
+            pendingAltClickWindow = EditorWindow.mouseOverWindow;
+            pendingAltClickMousePosition = GUIUtility.GUIToScreenPoint(Event.current.mousePosition);
+        }
+
+        public static void HandlePendingAltClick()
+        {
+            if (pendingAltClick == null || Event.current == null) return;
+
+            var eventType = Event.current.rawType;
+            var mousePosition = GUIUtility.GUIToScreenPoint(Event.current.mousePosition);
+            var movedTooFar = (mousePosition - pendingAltClickMousePosition).magnitude >= 5f;
+
+            if (eventType == EventType.MouseDrag && movedTooFar)
+            {
+                ClearPendingAltClick();
+                return;
+            }
+
+            if (eventType != EventType.MouseUp || Event.current.button != 0) return;
+
+            var action = pendingAltClick;
+            var shouldOpen = Event.current.alt && !movedTooFar && EditorWindow.mouseOverWindow == pendingAltClickWindow;
+            ClearPendingAltClick();
+
+            if (shouldOpen)
+                action();
+        }
+
+        static void ClearPendingAltClick()
+        {
+            pendingAltClick = null;
+            pendingAltClickWindow = null;
+        }
+
+        static System.Action pendingAltClick;
+        static EditorWindow pendingAltClickWindow;
+        static Vector2 pendingAltClickMousePosition;
+#endif
 
         HashSet<string> namesDrawnForGuids = new();
 

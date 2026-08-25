@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.2] - 2026-08-24
+
+- Added configurable Space, Alt, or Tab shortcuts and consolidated tool settings.
+- Added multi-select Component tabs with wrapped rows and a Deselect all action to vInspector.
+- Added embedded-package fallback paths for model preview assets.
+- Fixed Alt-click handling in Project and Hierarchy windows on Unity 6000.5 and newer.
+- Added missing Unity metadata for package folders and model assets.
+
 ## [0.1.1] - 2026-08-23
 
 - Added package manifest and script meta files for immutable Git package installation.

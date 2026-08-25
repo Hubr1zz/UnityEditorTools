@@ -18,8 +18,10 @@ namespace ZEditorTools
     internal static class ModelPreviewBackground
     {
         private const string packageAssetRoot = "Packages/com.leonz.z-editor-tools";
-        private static string modelPath => CombinePackagePath("Model", "fb.fbx");
-        private static string texturePath => CombinePackagePath("Model", "FeiBi_SubTool2Tex2.png");
+        private const string embeddedAssetRoot = "Assets/Plugins/zEditorTools";
+        private static string assetRoot => AssetDatabase.IsValidFolder(packageAssetRoot) ? packageAssetRoot : embeddedAssetRoot;
+        private static string modelPath => CombineAssetPath("Model", "fb.fbx");
+        private static string texturePath => CombineAssetPath("Model", "FeiBi_SubTool2Tex2.png");
         private const string EnabledPref = "zEditorTools.ModelPreviewBackground.Enabled";
         private const string ModelGuidPref = "zEditorTools.ModelPreviewBackground.ModelGuid";
         private const double ScanInterval = 0.5d;
@@ -55,8 +57,8 @@ namespace ZEditorTools
         private static double pendingWheelExpiry;
         private static EditorWindow focusedPreviewHost;
 
-        private static string CombinePackagePath(string directory, string fileName) =>
-            Path.Combine(packageAssetRoot, directory, fileName).Replace('\\', '/');
+        private static string CombineAssetPath(string directory, string fileName) =>
+            Path.Combine(assetRoot, directory, fileName).Replace('\\', '/');
 
         static ModelPreviewBackground()
         {

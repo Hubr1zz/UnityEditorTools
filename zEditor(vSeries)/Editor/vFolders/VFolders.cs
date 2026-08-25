@@ -857,6 +857,9 @@ namespace VFolders
 
         static void Shortcuts() // globalEventHandler 
         {
+#if UNITY_6000_5_OR_NEWER
+            VFoldersGUI.HandlePendingAltClick();
+#endif
             if (EditorWindow.mouseOverWindow is not EditorWindow hoveredWindow) return;
             if (hoveredWindow.GetType() != t_ProjectBrowser) return;
 
