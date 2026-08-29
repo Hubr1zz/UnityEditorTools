@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.3] - 2026-08-29
+
+- Fixed the missing settings button in the material preview background feature on newer Unity versions.
+- Added missing Unity metadata for package documentation files.
+
 ## [0.1.2] - 2026-08-24
 
 - Added configurable Space, Alt, or Tab shortcuts and consolidated tool settings.

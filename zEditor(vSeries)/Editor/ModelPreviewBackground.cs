@@ -28,6 +28,8 @@ namespace ZEditorTools
         private const float BackgroundSizeRelativeToTarget = 1.08f;
         private const float BackgroundSeparation = 1.18f;
         private const float PreviewHeaderHeight = 22f;
+        private const string previewRootElementTypeName = "PreviewRootElement";
+        private const string previewToolbarMethodName = "GetButtonPane";
 
         private static readonly BindingFlags InstanceFields =
             BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
@@ -301,28 +303,33 @@ namespace ZEditorTools
                         tooltip = "zEditorTools 模型预览设置"
                     };
                     button.name = "zEditorTools-model-preview-settings";
-                    button.style.position = Position.Absolute;
-                    button.style.left = 0f;
-                    button.style.top = PreviewHeaderHeight;
-                    button.style.width = 25f;
-                    button.style.height = 22f;
                     button.style.paddingLeft = 2f;
                     button.style.paddingRight = 2f;
                     button.style.unityTextAlign = TextAnchor.MiddleCenter;
                     SettingsButtons.Add(window, button);
                 }
 
-                // Inspector rebuilds this element whenever its inspected object changes.
-                // Reattach an existing button when its previous container was destroyed.
+                var previewToolbar = FindPreviewToolbar(window);
                 var previewElement = windowTypeName == "PreviewWindow"
                     ? GetFieldValueRecursive<VisualElement>(window, "m_previewElement")
                     : GetFieldValueRecursive<VisualElement>(window, "m_PreviewAndLabelElement");
-                var targetContainer = previewElement ?? window.rootVisualElement;
+                // Unity 6 exposes the preview toolbar through PreviewRootElement. Older
+                // versions only expose the preview container, so attach to its parent.
+                var targetContainer = previewToolbar ?? previewElement?.parent ?? window.rootVisualElement;
+                if (targetContainer == null)
+                    continue;
+
                 if (button.parent != targetContainer)
                 {
                     button.RemoveFromHierarchy();
                     targetContainer.Add(button);
                 }
+
+                button.style.position = previewToolbar != null ? Position.Relative : Position.Absolute;
+                button.style.left = 0f;
+                button.style.top = previewToolbar != null ? 0f : PreviewHeaderHeight;
+                button.style.width = previewToolbar != null ? 22f : 25f;
+                button.style.height = previewToolbar != null ? 18f : 22f;
 
                 // Never attach wheel handling to the whole Inspector. MaterialEditor
                 // also renders a small static icon in its header, which must retain
@@ -349,6 +356,47 @@ namespace ZEditorTools
                     SettingsButtons[window].RemoveFromHierarchy();
                 SettingsButtons.Remove(window);
             }
+        }
+
+        private static VisualElement FindPreviewToolbar(EditorWindow window)
+        {
+            return window?.rootVisualElement == null
+                ? null
+                : FindPreviewToolbar(window.rootVisualElement);
+        }
+
+        private static VisualElement FindPreviewToolbar(VisualElement element)
+        {
+            if (element == null)
+                return null;
+
+            if (element.GetType().Name == previewRootElementTypeName)
+            {
+                for (var type = element.GetType(); type != null; type = type.BaseType)
+                {
+                    var method = type.GetMethod(previewToolbarMethodName, InstanceFields | BindingFlags.DeclaredOnly);
+                    if (method == null)
+                        continue;
+
+                    try
+                    {
+                        return method.Invoke(element, null) as VisualElement;
+                    }
+                    catch
+                    {
+                        return null;
+                    }
+                }
+            }
+
+            for (var i = 0; i < element.childCount; i++)
+            {
+                var toolbar = FindPreviewToolbar(element[i]);
+                if (toolbar != null)
+                    return toolbar;
+            }
+
+            return null;
         }
 
         private static void RegisterWheelHandler(EditorWindow window, VisualElement container)
