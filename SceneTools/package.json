@@ -1,6 +1,6 @@
 {
   "name": "com.leonz.scene-tools",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "displayName": "Scene Tools",
   "description": "Optional Unity Editor tools for Scene View and hierarchy workflows.",
   "unity": "2022.3",
