@@ -22,7 +22,7 @@ namespace VHierarchy.Libs
         public static int GetLegacyInstanceId(this Object target)
         {
 #if UNITY_6000_5_OR_NEWER
-            return unchecked((int)EntityId.ToULong(target.GetEntityId()));
+            return target.GetEntityId().ToLegacyInstanceId();
 #else
             return target.GetInstanceID();
 #endif
@@ -32,7 +32,7 @@ namespace VHierarchy.Libs
         public static EntityId ToEntityId(this int instanceId)
         {
 #if UNITY_6000_5_OR_NEWER
-            return EntityId.FromULong(unchecked((uint)instanceId));
+            return entityIdsByLegacyInstanceId.TryGetValue(instanceId, out var entityId) ? entityId : EntityId.FromULong(unchecked((uint)instanceId));
 #else
             return instanceId;
 #endif
@@ -41,7 +41,9 @@ namespace VHierarchy.Libs
         public static int ToLegacyInstanceId(this EntityId entityId)
         {
 #if UNITY_6000_5_OR_NEWER
-            return unchecked((int)EntityId.ToULong(entityId));
+            var instanceId = unchecked((int)EntityId.ToULong(entityId));
+            entityIdsByLegacyInstanceId[instanceId] = entityId;
+            return instanceId;
 #else
             return entityId;
 #endif
@@ -57,10 +59,15 @@ namespace VHierarchy.Libs
 #endif
         }
 
+#if UNITY_6000_5_OR_NEWER
+        // Keep the full EntityId beside the legacy int used by the existing cache and controller code.
+        static Dictionary<int, EntityId> entityIdsByLegacyInstanceId = new();
+#endif
+
         public static int GetLegacyHandle(this Scene scene)
         {
 #if UNITY_6000_5_OR_NEWER
-            return unchecked((int)scene.handle.GetRawData());
+            return EntityId.FromULong(scene.handle.GetRawData()).ToLegacyInstanceId();
 #else
             return scene.handle;
 #endif

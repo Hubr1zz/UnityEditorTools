@@ -22,7 +22,7 @@ namespace VInspector.Libs
         public static int GetLegacyInstanceId(this Object target)
         {
 #if UNITY_6000_5_OR_NEWER
-            return unchecked((int)EntityId.ToULong(target.GetEntityId()));
+            return target.GetEntityId().ToLegacyInstanceId();
 #else
             return target.GetInstanceID();
 #endif
@@ -32,7 +32,7 @@ namespace VInspector.Libs
         public static EntityId ToEntityId(this int instanceId)
         {
 #if UNITY_6000_5_OR_NEWER
-            return EntityId.FromULong(unchecked((uint)instanceId));
+            return entityIdsByLegacyInstanceId.TryGetValue(instanceId, out var entityId) ? entityId : EntityId.FromULong(unchecked((uint)instanceId));
 #else
             return instanceId;
 #endif
@@ -41,7 +41,9 @@ namespace VInspector.Libs
         public static int ToLegacyInstanceId(this EntityId entityId)
         {
 #if UNITY_6000_5_OR_NEWER
-            return unchecked((int)EntityId.ToULong(entityId));
+            var instanceId = unchecked((int)EntityId.ToULong(entityId));
+            entityIdsByLegacyInstanceId[instanceId] = entityId;
+            return instanceId;
 #else
             return entityId;
 #endif
@@ -56,6 +58,11 @@ namespace VInspector.Libs
             return EditorUtility.InstanceIDToObject(instanceId);
 #endif
         }
+
+#if UNITY_6000_5_OR_NEWER
+        // Keep the full EntityId beside the legacy int used by the existing inspector helpers.
+        static Dictionary<int, EntityId> entityIdsByLegacyInstanceId = new();
+#endif
 
 
         #region Reflection

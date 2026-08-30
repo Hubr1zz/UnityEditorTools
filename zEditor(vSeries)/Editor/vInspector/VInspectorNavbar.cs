@@ -78,7 +78,7 @@ namespace VInspector
             {
                 if (!curEvent.isRepaint) return;
 
-                var nameRect = navbarRect.MoveX(VInspectorMenu.componentTabsEnabled ? 180 : 30 * 3 + 3);
+                var nameRect = navbarRect.MoveX(VInspectorMenu.componentTabsEnabled ? 210 : 122);
 
                 var minScrollPos = 10;
                 var maxScrollPos = 20;
@@ -184,11 +184,24 @@ namespace VInspector
                 VInspectorMenu.componentTabsEnabled = !VInspectorMenu.componentTabsEnabled;
                 VInspectorMenu.RepaintInspectors();
             }
+            void childComponentsButton()
+            {
+                var buttonRect = navbarRect.SetWidth(30).MoveX(91).AddWidthFromMid(-6);
+                var colorNormal = Greyscale(isDarkTheme ? .75f : .2f);
+                var colorHovered = Greyscale(isDarkTheme ? 1f : .2f);
+                var colorPressed = Greyscale(isDarkTheme ? .75f : .5f);
+
+                GUI.Label(buttonRect, new GUIContent("", "Batch-edit component settings on this object and its children"));
+
+                if (!IconButton(buttonRect, "UnityEditor.SceneHierarchyWindow", 16, colorNormal, colorHovered, colorPressed)) return;
+
+                VInspectorChildComponentsWindow.OpenFromSelection(Selection.activeGameObject);
+            }
             void deselectAllButton()
             {
                 if (!VInspectorMenu.componentTabsEnabled) return;
 
-                var buttonRect = navbarRect.SetWidth(84).MoveX(92).SetHeightFromMid(20);
+                var buttonRect = navbarRect.SetWidth(84).MoveX(122).SetHeightFromMid(20);
                 if (!GUI.Button(buttonRect, "Deselect all", EditorStyles.toolbarButton)) return;
 
                 VInspector.DeselectAllComponentTabs(window);
@@ -247,6 +260,7 @@ namespace VInspector
             moveBackButton();
             moveForwardButton();
             componentTabsButton();
+            childComponentsButton();
             deselectAllButton();
 
             bookmarks();
