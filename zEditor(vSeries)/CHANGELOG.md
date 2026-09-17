@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.1.5] - 2026-09-16
+
+- Moved the model-preview settings entry to the main toolbar and removed the Inspector-root fallback that misplaced it on Unity 2022.
+
 ## [0.1.3] - 2026-08-29
 
 - Fixed the missing settings button in the material preview background feature on newer Unity versions.

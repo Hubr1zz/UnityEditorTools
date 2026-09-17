@@ -7,6 +7,12 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.UIElements;
+#if UNITY_6000_3_OR_NEWER
+using UnityEditor.Overlays;
+using UnityEditor.Toolbars;
+#else
+using UnityEditor.UIElements;
+#endif
 using Object = UnityEngine.Object;
 
 namespace ZEditorTools
@@ -27,9 +33,8 @@ namespace ZEditorTools
         private const double ScanInterval = 0.5d;
         private const float BackgroundSizeRelativeToTarget = 1.08f;
         private const float BackgroundSeparation = 1.18f;
-        private const float PreviewHeaderHeight = 22f;
         private const string previewRootElementTypeName = "PreviewRootElement";
-        private const string previewToolbarMethodName = "GetButtonPane";
+        private const string previewPaneMethodName = "GetPreviewPane";
 
         private static readonly BindingFlags InstanceFields =
             BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
@@ -45,7 +50,6 @@ namespace ZEditorTools
         private static readonly Dictionary<PreviewRenderUtility, BackgroundInstance> Instances = new();
         private static readonly Dictionary<PreviewRenderUtility, PreviewContext> FoundUtilities = new();
         private static readonly HashSet<object> VisitedObjects = new(ReferenceEqualityComparer.Instance);
-        private static readonly Dictionary<EditorWindow, UnityEngine.UIElements.Button> SettingsButtons = new();
         private static readonly Dictionary<EditorWindow, VisualElement> WheelContainers = new();
         private static readonly Dictionary<EditorWindow, EventCallback<WheelEvent>> WheelCallbacks = new();
         private static readonly Dictionary<EditorWindow, EventCallback<PointerDownEvent>> FocusCallbacks = new();
@@ -206,7 +210,7 @@ namespace ZEditorTools
         private static void Update()
         {
             InitializeNewSelectionPreview();
-            UpdateSettingsButtons();
+            UpdatePreviewInputHandlers();
 
             if (!Enabled || EditorApplication.timeSinceStartup < nextScanTime)
                 return;
@@ -273,7 +277,7 @@ namespace ZEditorTools
             return false;
         }
 
-        private static void UpdateSettingsButtons()
+        private static void UpdatePreviewInputHandlers()
         {
             if (EditorApplication.timeSinceStartup < nextButtonScanTime)
                 return;
@@ -290,110 +294,85 @@ namespace ZEditorTools
                     continue;
 
                 livePreviewHosts.Add(window);
-                if (!SettingsButtons.TryGetValue(window, out var button) || button == null)
-                {
-                    var owner = window;
-                    button = new UnityEngine.UIElements.Button(() =>
-                        {
-                            if (owner != null && SettingsButtons.TryGetValue(owner, out var ownerButton))
-                                ModelPreviewLightingWindow.Open(owner, ownerButton.worldBound);
-                        })
-                    {
-                        text = "⚙",
-                        tooltip = "zEditorTools 模型预览设置"
-                    };
-                    button.name = "zEditorTools-model-preview-settings";
-                    button.style.paddingLeft = 2f;
-                    button.style.paddingRight = 2f;
-                    button.style.unityTextAlign = TextAnchor.MiddleCenter;
-                    SettingsButtons.Add(window, button);
-                }
-
-                var previewToolbar = FindPreviewToolbar(window);
+                var previewRoot = FindPreviewRoot(window);
+                var previewPane = InvokePreviewRootMethod(previewRoot, previewPaneMethodName);
                 var previewElement = windowTypeName == "PreviewWindow"
                     ? GetFieldValueRecursive<VisualElement>(window, "m_previewElement")
                     : GetFieldValueRecursive<VisualElement>(window, "m_PreviewAndLabelElement");
-                // Unity 6 exposes the preview toolbar through PreviewRootElement. Older
-                // versions only expose the preview container, so attach to its parent.
-                var targetContainer = previewToolbar ?? previewElement?.parent ?? window.rootVisualElement;
+                var previewContainer = GetFieldValueRecursive<VisualElement>(window, "previewContainer");
+                var nestedPreviewWindow = GetFieldValueRecursive<EditorWindow>(window, "m_PreviewWindow");
+                var nestedPreviewElement = nestedPreviewWindow != null ? GetFieldValueRecursive<VisualElement>(nestedPreviewWindow, "m_previewElement") : null;
+                var visualTreePreviewContainer = window.rootVisualElement?.Q<VisualElement>("preview-container");
+                var targetContainer = previewPane ?? visualTreePreviewContainer ?? previewContainer ?? previewElement ?? nestedPreviewElement;
                 if (targetContainer == null)
-                    continue;
-
-                if (button.parent != targetContainer)
                 {
-                    button.RemoveFromHierarchy();
-                    targetContainer.Add(button);
+                    UnregisterWheelHandler(window);
+                    continue;
                 }
-
-                button.style.position = previewToolbar != null ? Position.Relative : Position.Absolute;
-                button.style.left = 0f;
-                button.style.top = previewToolbar != null ? 0f : PreviewHeaderHeight;
-                button.style.width = previewToolbar != null ? 22f : 25f;
-                button.style.height = previewToolbar != null ? 18f : 22f;
 
                 // Never attach wheel handling to the whole Inspector. MaterialEditor
                 // also renders a small static icon in its header, which must retain
                 // Unity's native behavior.
-                if (previewElement != null)
-                    RegisterWheelHandler(window, previewElement);
-                else
+                RegisterWheelHandler(window, previewElement ?? previewPane ?? targetContainer);
+            }
+
+            foreach (var window in new List<EditorWindow>(WheelContainers.Keys))
+                if (window == null || !livePreviewHosts.Contains(window))
                     UnregisterWheelHandler(window);
-                button.style.display = DisplayStyle.Flex;
-                button.BringToFront();
-            }
-
-            var staleWindows = new List<EditorWindow>();
-            foreach (var pair in SettingsButtons)
-            {
-                if (pair.Key == null || !livePreviewHosts.Contains(pair.Key))
-                    staleWindows.Add(pair.Key);
-            }
-
-            foreach (var window in staleWindows)
-            {
-                UnregisterWheelHandler(window);
-                if (window != null && SettingsButtons[window] != null)
-                    SettingsButtons[window].RemoveFromHierarchy();
-                SettingsButtons.Remove(window);
-            }
         }
 
-        private static VisualElement FindPreviewToolbar(EditorWindow window)
+        private static VisualElement FindPreviewRoot(EditorWindow window)
         {
-            return window?.rootVisualElement == null
-                ? null
-                : FindPreviewToolbar(window.rootVisualElement);
+            if (window == null)
+                return null;
+
+            return GetFieldValueRecursive<VisualElement>(window, "m_PreviewRootElement") ?? FindPreviewRoot(window.rootVisualElement);
         }
 
-        private static VisualElement FindPreviewToolbar(VisualElement element)
+        private static VisualElement FindPreviewRoot(VisualElement element)
         {
             if (element == null)
                 return null;
 
             if (element.GetType().Name == previewRootElementTypeName)
-            {
-                for (var type = element.GetType(); type != null; type = type.BaseType)
-                {
-                    var method = type.GetMethod(previewToolbarMethodName, InstanceFields | BindingFlags.DeclaredOnly);
-                    if (method == null)
-                        continue;
-
-                    try
-                    {
-                        return method.Invoke(element, null) as VisualElement;
-                    }
-                    catch
-                    {
-                        return null;
-                    }
-                }
-            }
+                return element;
 
             for (var i = 0; i < element.childCount; i++)
             {
-                var toolbar = FindPreviewToolbar(element[i]);
-                if (toolbar != null)
-                    return toolbar;
+                var previewRoot = FindPreviewRoot(element[i]);
+                if (previewRoot != null)
+                    return previewRoot;
+            }
+
+            return null;
+        }
+
+        private static VisualElement InvokePreviewRootMethod(VisualElement previewRoot, string methodName)
+        {
+            var method = GetPreviewRootMethod(previewRoot, methodName);
+            if (method == null)
+                return null;
+
+            try
+            {
+                return method.Invoke(previewRoot, null) as VisualElement;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static MethodInfo GetPreviewRootMethod(VisualElement previewRoot, string methodName)
+        {
+            if (previewRoot == null)
+                return null;
+
+            for (var type = previewRoot.GetType(); type != null; type = type.BaseType)
+            {
+                var method = type.GetMethod(methodName, InstanceFields | BindingFlags.DeclaredOnly);
+                if (method != null)
+                    return method;
             }
 
             return null;
@@ -1277,12 +1256,6 @@ namespace ZEditorTools
             RemoveAllInstances();
             foreach (var window in new List<EditorWindow>(WheelContainers.Keys))
                 UnregisterWheelHandler(window);
-            foreach (var button in SettingsButtons.Values)
-            {
-                if (button != null)
-                    button.RemoveFromHierarchy();
-            }
-            SettingsButtons.Clear();
             sourceModel = null;
             sourceTexture = null;
         }
@@ -1484,37 +1457,157 @@ namespace ZEditorTools
         }
     }
 
+    [InitializeOnLoad]
+    internal static class ModelPreviewToolbarEntry
+    {
+        private const string toolbarElementPath = "zEditorTools/Model Preview Settings";
+        private const string toolbarButtonName = "zEditorTools-model-preview-settings";
+        private const string toolbarTooltip = "打开 zEditorTools 模型预览设置";
+
+#if UNITY_6000_3_OR_NEWER
+        private const double visibilityCheckInterval = 0.5d;
+        private static readonly MethodInfo TryGetOverlayMethod = typeof(MainToolbar).GetMethod("TryGetOverlay", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+        private static double nextVisibilityCheckTime;
+
+        static ModelPreviewToolbarEntry()
+        {
+            EditorApplication.update += EnsureButtonVisible;
+        }
+
+        [MainToolbarElement(toolbarElementPath, defaultDockPosition = MainToolbarDockPosition.Middle, defaultDockIndex = 1, menuPriority = 10)]
+        private static MainToolbarElement CreateButton()
+        {
+            var content = new MainToolbarContent("预览设置", GetSettingsIcon(), toolbarTooltip);
+            return new MainToolbarButton(content, ModelPreviewLightingWindow.OpenFromMainToolbar);
+        }
+
+        private static void EnsureButtonVisible()
+        {
+            if (EditorApplication.timeSinceStartup < nextVisibilityCheckTime)
+                return;
+            nextVisibilityCheckTime = EditorApplication.timeSinceStartup + visibilityCheckInterval;
+
+            if (TryGetOverlayMethod == null)
+            {
+                EditorApplication.update -= EnsureButtonVisible;
+                return;
+            }
+
+            try
+            {
+                var arguments = new object[] { toolbarElementPath, null };
+                if (TryGetOverlayMethod.Invoke(null, arguments) is not true || arguments[1] is not Overlay overlay)
+                    return;
+
+                if (!overlay.displayed)
+                    overlay.displayed = true;
+                MainToolbar.Refresh(toolbarElementPath);
+                EditorApplication.update -= EnsureButtonVisible;
+            }
+            catch
+            {
+                EditorApplication.update -= EnsureButtonVisible;
+            }
+        }
+#else
+        private const double attachInterval = 1d;
+        private static readonly Type ToolbarType = typeof(Editor).Assembly.GetType("UnityEditor.Toolbar");
+        private static ToolbarButton toolbarButton;
+        private static double nextAttachTime;
+
+        static ModelPreviewToolbarEntry()
+        {
+            EditorApplication.update += TryAttachButton;
+        }
+
+        private static void TryAttachButton()
+        {
+            if (EditorApplication.timeSinceStartup < nextAttachTime)
+                return;
+            nextAttachTime = EditorApplication.timeSinceStartup + attachInterval;
+
+            var toolbarRoot = FindToolbarRoot();
+            if (toolbarRoot?.Q<VisualElement>("ToolbarZonePlayMode") == null)
+                return;
+
+            var rightZone = toolbarRoot?.Q<VisualElement>("ToolbarZoneRightAlign");
+            if (rightZone == null)
+                return;
+
+            if (toolbarButton == null)
+            {
+                toolbarButton = new ToolbarButton(ModelPreviewLightingWindow.OpenFromMainToolbar)
+                {
+                    name = toolbarButtonName,
+                    tooltip = toolbarTooltip
+                };
+                toolbarButton.style.width = 32f;
+                toolbarButton.style.flexShrink = 0f;
+                var icon = new Image { image = GetSettingsIcon(), scaleMode = ScaleMode.ScaleToFit };
+                icon.style.width = 16f;
+                icon.style.height = 16f;
+                toolbarButton.Add(icon);
+            }
+
+            if (toolbarButton.parent == rightZone)
+                return;
+
+            toolbarButton.RemoveFromHierarchy();
+            rightZone.Insert(0, toolbarButton);
+        }
+
+        private static VisualElement FindToolbarRoot()
+        {
+            if (ToolbarType == null)
+                return null;
+
+            var toolbars = Resources.FindObjectsOfTypeAll(ToolbarType);
+            if (toolbars.Length == 0 || toolbars[0] == null)
+                return null;
+
+            for (var type = toolbars[0].GetType(); type != null; type = type.BaseType)
+            {
+                var rootField = type.GetField("m_Root", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly);
+                if (rootField?.GetValue(toolbars[0]) is VisualElement root)
+                    return root;
+            }
+
+            return null;
+        }
+#endif
+
+        private static Texture2D GetSettingsIcon()
+        {
+            return (EditorGUIUtility.IconContent("Settings").image ?? EditorGUIUtility.IconContent("_Popup").image) as Texture2D;
+        }
+    }
+
     internal sealed class ModelPreviewLightingWindow : EditorWindow
     {
         private static ModelPreviewLightingWindow instance;
-        private EditorWindow ownerWindow;
         private Vector2 scrollPosition;
         private string decorationModelPath;
         private string decorationModelPathError;
 
-        internal static void Open(EditorWindow owner, Rect localActivatorRect)
+        internal static void OpenFromMainToolbar()
         {
-            var wasOpenForSameOwner = false;
+            var wasOpen = false;
             foreach (var oldWindow in Resources.FindObjectsOfTypeAll<ModelPreviewLightingWindow>())
             {
                 if (oldWindow != null)
                 {
-                    wasOpenForSameOwner |= oldWindow.ownerWindow == owner;
+                    wasOpen = true;
                     oldWindow.Close();
                 }
             }
 
-            if (wasOpenForSameOwner)
+            if (wasOpen)
                 return;
 
             instance = CreateInstance<ModelPreviewLightingWindow>();
-            instance.ownerWindow = owner;
-            var screenRect = localActivatorRect;
-            screenRect.position += owner.position.position;
             var popupSize = new Vector2(380f, 340f);
-            var popupPosition = new Vector2(
-                screenRect.xMin,
-                Mathf.Max(0f, screenRect.yMin - popupSize.y - 4f));
+            var mainWindowRect = EditorGUIUtility.GetMainWindowPosition();
+            var popupPosition = new Vector2(Mathf.Clamp(mainWindowRect.center.x + 60f, mainWindowRect.xMin, mainWindowRect.xMax - popupSize.x), mainWindowRect.yMin + 24f);
             instance.position = new Rect(popupPosition, popupSize);
             instance.ShowPopup();
             instance.position = new Rect(popupPosition, popupSize);
@@ -1525,20 +1618,12 @@ namespace ZEditorTools
             instance = this;
             decorationModelPath = ModelPreviewBackground.DecorationModelPath;
             decorationModelPathError = string.Empty;
-            EditorApplication.update += CloseWhenOwnerIsGone;
         }
 
         private void OnDisable()
         {
-            EditorApplication.update -= CloseWhenOwnerIsGone;
             if (instance == this)
                 instance = null;
-        }
-
-        private void CloseWhenOwnerIsGone()
-        {
-            if (ownerWindow == null)
-                Close();
         }
 
         private void OnGUI()
