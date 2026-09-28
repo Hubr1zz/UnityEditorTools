@@ -1492,32 +1492,12 @@ namespace VFolders
             }
             void loadData()
             {
-                data = AssetDatabase.LoadAssetAtPath<VFoldersData>(ProjectPrefs.GetString("vFolders-lastKnownDataPath"));
-
-
-                if (data) return;
-
-                data = AssetDatabase.FindAssets("t:VFoldersData").Select(guid => AssetDatabase.LoadAssetAtPath<VFoldersData>(guid.ToPath())).FirstOrDefault();
-
-
-                if (!data) return;
-
-                ProjectPrefs.SetString("vFolders-lastKnownDataPath", data.GetPath());
+                data = VFoldersDataStorage.LoadData();
 
             }
             void loadPalette()
             {
-                palette = AssetDatabase.LoadAssetAtPath<VFoldersPalette>(ProjectPrefs.GetString("vFolders-lastKnownPalettePath"));
-
-
-                if (palette) return;
-
-                palette = AssetDatabase.FindAssets("t:VFoldersPalette").Select(guid => AssetDatabase.LoadAssetAtPath<VFoldersPalette>(guid.ToPath())).FirstOrDefault();
-
-
-                if (!palette) return;
-
-                ProjectPrefs.SetString("vFolders-lastKnownPalettePath", palette.GetPath());
+                palette = VFoldersDataStorage.LoadPalette();
 
             }
             void loadDataAndPaletteDelayed()
@@ -1627,15 +1607,48 @@ namespace VFolders
                 if (!palette) return;
                 if (!data) return;
 
-                foreach (var iconRow in palette.iconRows)
-                    if (iconRow.builtinIcons.Contains("PhysicMaterial Icon"))
-                        iconRow.builtinIcons[iconRow.builtinIcons.IndexOf("PhysicMaterial Icon")] = "PhysicsMaterial Icon";
+                EditorApplication.delayCall += () =>
+                {
+                    if (!data)
+                        return;
 
-                foreach (var folderData in data.folderDatas_byGuid.Values)
-                    if (folderData.iconNameOrGuid == "PhysicMaterial Icon")
-                        folderData.iconNameOrGuid = "PhysicsMaterial Icon";
+                    var dataPath = AssetDatabase.GetAssetPath(data);
+                    if (!dataPath.StartsWith("Assets/", System.StringComparison.Ordinal))
+                        return;
+                    if (!palette)
+                        return;
 
-                ProjectPrefs.SetBool("vFolders-iconNamesForUnity6Fixed", true);
+                    var paletteNeedsFix = palette.iconRows.Any(iconRow => iconRow.builtinIcons.Contains("PhysicMaterial Icon"));
+                    if (paletteNeedsFix)
+                    {
+                        palette = VFoldersDataStorage.GetOrCreatePalette();
+                        if (!palette)
+                            return;
+
+                        var palettePath = AssetDatabase.GetAssetPath(palette);
+                        if (!palettePath.StartsWith("Assets/", System.StringComparison.Ordinal))
+                            return;
+
+                        foreach (var iconRow in palette.iconRows)
+                            if (iconRow.builtinIcons.Contains("PhysicMaterial Icon"))
+                                iconRow.builtinIcons[iconRow.builtinIcons.IndexOf("PhysicMaterial Icon")] = "PhysicsMaterial Icon";
+
+                        palette.Dirty();
+                        palette.Save();
+                    }
+
+                    if (data.folderDatas_byGuid.Values.Any(folderData => folderData.iconNameOrGuid == "PhysicMaterial Icon"))
+                    {
+                        foreach (var folderData in data.folderDatas_byGuid.Values)
+                            if (folderData.iconNameOrGuid == "PhysicMaterial Icon")
+                                folderData.iconNameOrGuid = "PhysicsMaterial Icon";
+
+                        data.Dirty();
+                        data.Save();
+                    }
+
+                    ProjectPrefs.SetBool("vFolders-iconNamesForUnity6Fixed", true);
+                };
 
             }
 

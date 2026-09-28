@@ -154,6 +154,7 @@ namespace VFavorites
 
             public Item(Object o)
             {
+                _obj = o;
                 globalId = o.GetGlobalID();
 
 

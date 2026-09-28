@@ -8,6 +8,7 @@ using UnityEditor.SceneManagement;
 using UnityEditor.ShortcutManagement;
 using System.Reflection;
 using System.Linq;
+using System.Runtime.InteropServices;
 using UnityEngine.UIElements;
 using Type = System.Type;
 using static VFavorites.Libs.VUtils;
@@ -878,7 +879,7 @@ namespace VFavorites
 
                 if (VFavoritesMenu.embeddedPanelUsesWindowUI)
                 {
-                    VFavoritesWindow.DrawEmbedded(embeddedRect_browserSpace, currentOpacity);
+                    VFavoritesWindow.DrawEmbedded(wrappedBrowser, embeddedRect_browserSpace, currentOpacity);
                     return;
                 }
 
@@ -897,10 +898,10 @@ namespace VFavorites
             {
                 if (VFavoritesMenu.embeddedPanelUsesWindowUI)
                 {
-                    VFavoritesWindow.DrawEmbedded(embeddedRect_browserSpace, currentOpacity);
+                    VFavoritesWindow.DrawEmbedded(wrappedBrowser, embeddedRect_browserSpace, currentOpacity);
 
                     if (embeddedRect_browserSpace.IsHovered())
-                        if (curEvent.isMouseUp || curEvent.isMouseDrag || curEvent.isScroll)
+                        if (curEvent.isMouseUp || curEvent.isMouseDrag || curEvent.isScroll || curEvent.type == EventType.DragUpdated || curEvent.type == EventType.DragPerform)
                             curEvent.Use();
 
                     originalBrowserGUI();
@@ -918,7 +919,7 @@ namespace VFavorites
                 GUI.EndGroup();
 
                 if (totalRect_browserSpace.IsHovered())
-                    if (curEvent.isMouseUp || curEvent.isMouseDrag || curEvent.isScroll) // prevents these events from reaching original gui
+                    if (curEvent.isMouseUp || curEvent.isMouseDrag || curEvent.isScroll || curEvent.type == EventType.DragUpdated || curEvent.type == EventType.DragPerform) // prevents these events from reaching original gui
                         curEvent.Use();
 
                 originalBrowserGUI();
@@ -972,6 +973,13 @@ namespace VFavorites
             else
                 doVFavoritesGUIFirst_();
 
+
+            if (VFavoritesMenu.embeddedPanelUsesWindowUI)
+            {
+                if (animatingOpacity)
+                    wrappedBrowser.Repaint();
+                return;
+            }
 
             if (isWrappedBrowserLocked)
                 if (!totalRect_browserSpace.IsHovered() && !animatingDroppedItem && !animatingPageScroll) return;
@@ -1245,6 +1253,13 @@ namespace VFavorites
                 if (!VFavoritesMenu.fadeAnimationsEnabled) { currentOpacity = targetOpacity; return; }
                 if (!UnityEditorInternal.InternalEditorUtility.isApplicationActive) { currentOpacity = targetOpacity; return; }
 
+                if (shortcutPressed && DragAndDrop.objectReferences.Length > 0)
+                {
+                    currentOpacity = targetOpacity;
+                    currentOpacityDerivative = 0;
+                    return;
+                }
+
                 SmoothDamp(ref currentOpacity, targetOpacity, 11, ref currentOpacityDerivative, deltaTime);
 
                 if (targetOpacity == 0 && currentOpacity < .04f)
@@ -1306,6 +1321,9 @@ namespace VFavorites
 
             calcDeltaTime();
             opacity();
+            if (VFavoritesMenu.embeddedPanelUsesWindowUI)
+                return;
+
             pagesScroll();
             rowGaps();
             droppedItem();
@@ -1315,6 +1333,9 @@ namespace VFavorites
 
         static void CancelRowAnimations()
         {
+            if (!data)
+                return;
+
             for (int i = 0; i < data.curPage.rowGaps.Count; i++)
                 data.curPage.rowGaps[i] = 0;
 
@@ -1356,7 +1377,8 @@ namespace VFavorites
             {
                 if (draggingItem) return;
                 if (!totalRect_browserSpace.IsHovered()) return;
-                if (!curEvent.isDragUpdate) return;
+                if (!curEvent.isDragUpdate && !curEvent.isDragPerform)
+                    return;
                 if (!DragAndDrop.objectReferences.FirstOrDefault()) return;
                 if (draggingItemFromPageToOutside) return; // to avoid duplication when dragging item from page to outside and back
 
@@ -1375,7 +1397,8 @@ namespace VFavorites
             void initFromPage()
             {
                 if (draggingItem) return;
-                if (!totalRect_browserSpace.IsHovered()) return;
+                if (!totalRect_browserSpace.IsHovered())
+                    return;
                 if (!curEvent.isMouseDrag) return;
                 if (mouseDragDistance < 2) return;
 
@@ -1408,6 +1431,8 @@ namespace VFavorites
             void acceptFromOutside()
             {
                 if (!draggingItem) return;
+                if (!totalRect_browserSpace.IsHovered())
+                    return;
                 if (!curEvent.isDragPerform) return;
 
                 DragAndDrop.AcceptDrag();
@@ -1429,7 +1454,8 @@ namespace VFavorites
             void cancelFromOutside()
             {
                 if (!draggingItemFromOutside) return;
-                if (totalRect_browserSpace.IsHovered()) return;
+                if (totalRect_browserSpace.IsHovered() && curEvent.type != EventType.DragExited)
+                    return;
 
                 CancelDragging();
 
@@ -1530,6 +1556,7 @@ namespace VFavorites
             draggingItem = false;
             mousePressed = false;
 
+            EditorGUIUtility.hotControl = 0;
 
             if (!draggingItemFromPage) { draggedItem = null; return; }
 
@@ -1544,8 +1571,6 @@ namespace VFavorites
             draggingItemFromPage = false;
 
             draggedItem = null;
-
-            EditorGUIUtility.hotControl = 0;
 
             data.Dirty();
             data.Save();
@@ -1587,15 +1612,26 @@ namespace VFavorites
                 if (wrappedBrowser) return;
                 if (!UnityEditorInternal.InternalEditorUtility.isApplicationActive) return;
                 if (!shortcutPressed) return;
-                if (EditorWindow.mouseOverWindow?.GetType() != t_BrowserWindow) return;
-                if (t_VTabs != null && !EditorPrefsCached.GetBool("vTabs-pluginDisabled", false) && EditorWindow.mouseOverWindow.GetMemberValue<bool>("isLocked")) return;
+                var hoveredWindow = EditorWindow.mouseOverWindow;
+                if (hoveredWindow?.GetType() != t_BrowserWindow)
+                    return;
+                if (t_VTabs != null && !EditorPrefsCached.GetBool("vTabs-pluginDisabled", false) && hoveredWindow.GetMemberValue<bool>("isLocked"))
+                    return;
 
 
-                WrapBrowserGUI(EditorWindow.mouseOverWindow);
+                WrapBrowserGUI(hoveredWindow);
 
-                wrappedBrowser = EditorWindow.mouseOverWindow;
+                wrappedBrowser = hoveredWindow;
 
-                wrappedBrowser.Focus();
+                if (DragAndDrop.objectReferences.Length > 0)
+                {
+                    currentOpacity = 1;
+                    currentOpacityDerivative = 0;
+                }
+                else
+                {
+                    wrappedBrowser.Focus();
+                }
                 wrappedBrowser.Repaint();
 
                 t_BrowserWindow.SetFieldValue("s_LastInteractedProjectBrowser", wrappedBrowser); // so vTabs can copy its layout setting
@@ -1605,23 +1641,21 @@ namespace VFavorites
             {
                 if (!wrappedBrowser)
                 {
-                    if (!shortcutPressed)
-                    {
-                        VFavoritesWindow.ReleaseEmbeddedRenderer();
-                        VFavoritesWindow.CleanupInvalidWindows();
-                    }
-
+                    VFavoritesWindow.ReleaseEmbeddedRenderer();
                     return;
                 }
 
-                if (shortcutPressed && wrappedBrowser.hasFocus) return;
-                if (currentOpacity > 0 && wrappedBrowser.hasFocus) return;
+                var hoveredWindow = EditorWindow.mouseOverWindow;
+                if (UnityEditorInternal.InternalEditorUtility.isApplicationActive && shortcutPressed && (hoveredWindow == wrappedBrowser || !hoveredWindow || (hoveredWindow.GetType() != t_BrowserWindow && (wrappedBrowser.hasFocus || DragAndDrop.objectReferences.Length > 0))))
+                    return;
+
+                if (!shortcutPressed && currentOpacity > 0 && wrappedBrowser.hasFocus)
+                    return;
 
 
                 CancelDragging();
                 CancelRowAnimations();
                 VFavoritesWindow.ReleaseEmbeddedRenderer();
-                VFavoritesWindow.CleanupInvalidWindows();
 
                 UnwrapBrowserGUI();
 
@@ -1661,6 +1695,11 @@ namespace VFavorites
             get => activationKeyHeld;
         }
 
+#if UNITY_EDITOR_WIN
+        [DllImport("user32.dll")]
+        static extern short GetAsyncKeyState(int virtualKey);
+#endif
+
         static void TrackActivationKey()
         {
             var configuredKey = VFavoritesMenu.activationKey;
@@ -1673,10 +1712,20 @@ namespace VFavorites
 
             if (!UnityEditorInternal.InternalEditorUtility.isApplicationActive)
             {
-                activationKeyHeld = false;
+                SetActivationKeyHeld(false);
                 return;
             }
 
+#if UNITY_EDITOR_WIN
+            // Native Windows drag can omit IMGUI KeyDown/KeyUp events, so poll the OS key state directly.
+            var virtualKey = VFavoritesConsts.WindowsSpaceKey;
+            if (configuredKey == VFavoritesActivationKey.Tab)
+                virtualKey = VFavoritesConsts.WindowsTabKey;
+            else if (configuredKey == VFavoritesActivationKey.Alt)
+                virtualKey = VFavoritesConsts.WindowsAltKey;
+
+            SetActivationKeyHeld(GetAsyncKeyState(virtualKey) < 0);
+#else
             var currentEvent = typeof(Event).GetFieldValue<Event>("s_Current");
             if (currentEvent == null) return;
 
@@ -1692,6 +1741,7 @@ namespace VFavorites
                 SetActivationKeyHeld(true);
             if (currentEvent.rawType == EventType.KeyUp)
                 SetActivationKeyHeld(false);
+#endif
         }
 
         static void SetActivationKeyHeld(bool value)

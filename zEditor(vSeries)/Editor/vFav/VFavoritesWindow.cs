@@ -73,10 +73,8 @@ namespace VFavorites
             shortcutPopupInstance = null;
         }
 
-        public static void DrawEmbedded(Rect rect, float opacity)
+        public static void DrawEmbedded(EditorWindow hostWindow, Rect rect, float opacity)
         {
-            CleanupInvalidWindows();
-
             if (!embeddedRenderer)
             {
                 try
@@ -98,15 +96,19 @@ namespace VFavorites
 
             GUI.BeginGroup(rect);
 
+            embeddedRenderer.embeddedHostWindow = hostWindow;
             embeddedRenderer.drawingEmbedded = true;
             embeddedRenderer.embeddedDrawSize = rect.size;
-            embeddedRenderer.updateAnimations();
-            embeddedRenderer.OnGUI();
-            embeddedRenderer.drawingEmbedded = false;
-
-            GUI.EndGroup();
-
-            GUI.color = oldColor;
+            try
+            {
+                embeddedRenderer.OnGUI();
+            }
+            finally
+            {
+                embeddedRenderer.drawingEmbedded = false;
+                GUI.EndGroup();
+                GUI.color = oldColor;
+            }
         }
 
         public static void ReleaseEmbeddedRenderer()
@@ -161,6 +163,19 @@ namespace VFavorites
             titleContent = new GUIContent("vFavorites Embedded");
 
             EditorApplication.update -= OnEditorUpdate;
+            EditorApplication.update += OnEditorUpdate;
+        }
+
+        void RequestRepaint()
+        {
+            if (isEmbeddedRenderer)
+            {
+                if (embeddedHostWindow)
+                    embeddedHostWindow.Repaint();
+                return;
+            }
+
+            base.Repaint();
         }
 
         static Rect GetShortcutPopupRect(EditorWindow anchorWindow)
@@ -201,6 +216,8 @@ namespace VFavorites
 
         void OnDisable()
         {
+            CancelDragging();
+            embeddedHostWindow = null;
             EditorApplication.update -= OnEditorUpdate;
 
             if (openedByShortcut)
@@ -224,7 +241,17 @@ namespace VFavorites
         void OnEditorUpdate()
         {
             if (isEmbeddedRenderer)
+            {
+                if (!embeddedHostWindow)
+                    return;
+
+                updateAnimations();
+
+                if (draggingItem)
+                    RequestRepaint();
+
                 return;
+            }
 
             if (openedByShortcut && !VFavorites.IsShortcutPressed)
             {
@@ -261,13 +288,13 @@ namespace VFavorites
                     mouseInWindow = true;
                     mouseLeaveTime = double.MaxValue;
                     
-                    Repaint();
+                    RequestRepaint();
                 }
                 else if (!isHovering && mouseInWindow)
                 {
                     mouseInWindow = false;
                     mouseLeaveTime = EditorApplication.timeSinceStartup;
-                    Repaint();
+                    RequestRepaint();
                 }
             }
             #endif
@@ -276,11 +303,11 @@ namespace VFavorites
             // OnGUI won't fire if we don't have focus, so we must Repaint from here
             if (contentExpandRatio > 0f && contentExpandRatio < 1f)
             {
-                Repaint();
+                RequestRepaint();
             }
             else if (!mouseInWindow && !shouldCollapse && contentExpandRatio > 0f)
             {
-                Repaint();
+                RequestRepaint();
             }
         }
         
@@ -331,6 +358,9 @@ namespace VFavorites
 
         void OnGUI()
         {
+            if (curEvent.isRepaint)
+                anyPreviewLoading = false;
+
             createData();
 
             if (!data) return;
@@ -379,7 +409,7 @@ namespace VFavorites
                         Debug.Log($"[vFav] OnGUI: mouse entered (macOS). expandRatio={contentExpandRatio:F2}");
                 }
                 if (wasInWindow != mouseInWindow)
-                    Repaint();
+                    RequestRepaint();
                 #endif
             }
             updateFloatingWindowState();
@@ -1171,7 +1201,8 @@ namespace VFavorites
                 {
                     if (draggingItem) return;
                     if (!groupRect.IsHovered()) return;
-                    if (!curEvent.isDragUpdate) return;
+                    if (!curEvent.isDragUpdate && !curEvent.isDragPerform)
+                        return;
                     if (!DragAndDrop.objectReferences.FirstOrDefault()) return;
                     if (draggingItemFromPageToOutside) return;
 
@@ -1189,7 +1220,8 @@ namespace VFavorites
                 void initFromPage()
                 {
                     if (draggingItem) return;
-                    if (!groupRect.IsHovered()) return;
+                    if (!groupRect.IsHovered())
+                        return;
                     if (!curEvent.isMouseDrag) return;
                     if (mouseDragDistance < 2) return;
 
@@ -1230,6 +1262,8 @@ namespace VFavorites
                 void acceptFromOutside()
                 {
                     if (!draggingItem) return;
+                    if (!groupRect.IsHovered())
+                        return;
                     if (!curEvent.isDragPerform) return;
 
                     DragAndDrop.AcceptDrag();
@@ -1251,7 +1285,8 @@ namespace VFavorites
                 {
                     if (draggingItemFromPage) return;
                     if (!draggingItem) return;
-                    if (groupRect.IsHovered()) return;
+                    if (groupRect.IsHovered() && curEvent.type != EventType.DragExited)
+                        return;
 
                     CancelDragging();
                 }
@@ -1445,7 +1480,7 @@ namespace VFavorites
                     menu.AddItem(
                         new GUIContent("Use expanded area for hover detection"), 
                         useExpandedAreaDetection, 
-                        () => { useExpandedAreaDetection = !useExpandedAreaDetection; Repaint(); });
+                        () => { useExpandedAreaDetection = !useExpandedAreaDetection; RequestRepaint(); });
                     menu.ShowAsContext();
                     curEvent.Use();
                 }
@@ -1474,14 +1509,11 @@ namespace VFavorites
 
             // --- animations ---
             if (animatingDroppedItem || animatingRowGaps)
-                Repaint();
+                RequestRepaint();
             
             // keep repainting during active drag so preview follows mouse
             if (draggingItem)
-                Repaint();
-
-            // reset per-frame preview flag before drawing; DrawItemIcon will set it if any preview is still loading
-            anyPreviewLoading = false;
+                RequestRepaint();
 
             // trim extra empty pages auto-created by data.curPage getter
             if (curEvent.isLayout)
@@ -1491,6 +1523,9 @@ namespace VFavorites
 
         void Update()
         {
+            if (isEmbeddedRenderer)
+                return;
+
             updateAnimations();
         }
 
@@ -1522,6 +1557,9 @@ namespace VFavorites
         // --- draw icon (shared between list and grid) ---
         void DrawItemIcon(Item item, Rect iconRect, float highlightAmount)
         {
+            if (!curEvent.isRepaint)
+                return;
+
             if (item.isSceneGameObject)
                 iconRect = iconRect.MoveX(1).Resize(.5f);
 
@@ -1736,6 +1774,7 @@ namespace VFavorites
                 {
                     draggedItem = null;
                     EditorGUIUtility.hotControl = 0;
+                    dragHotControlId = 0;
                     return;
                 }
             }
@@ -1777,6 +1816,8 @@ namespace VFavorites
             draggingItem = false;
             mousePressed = false;
 
+            EditorGUIUtility.hotControl = 0;
+            dragHotControlId = 0;
 
             if (!draggingItemFromPage) { draggedItem = null; return; }
 
@@ -1793,9 +1834,6 @@ namespace VFavorites
             draggingItemFromPage = false;
 
             draggedItem = null;
-
-            EditorGUIUtility.hotControl = 0;
-            dragHotControlId = 0;
 
             data.Dirty();
             data.Save();
@@ -1901,7 +1939,7 @@ namespace VFavorites
                 
                 // keep repainting during animation or while waiting for delay
                 if (!contentExpandRatio.Approx(prevRatio) || (!mouseInWindow && !shouldCollapse))
-                    Repaint();
+                    RequestRepaint();
             }
             else
             {
@@ -1909,10 +1947,10 @@ namespace VFavorites
             }
 
             if (animatingDroppedItem || animatingRowGaps)
-                Repaint();
+                RequestRepaint();
 
             if (anyPreviewLoading)
-                Repaint();
+                RequestRepaint();
         }
 
 
@@ -2057,6 +2095,7 @@ namespace VFavorites
         bool isFloatingWindow => !docked && !openedByShortcut && !drawingEmbedded && !isEmbeddedRenderer;
         bool drawingEmbedded;
         bool isEmbeddedRenderer;
+        EditorWindow embeddedHostWindow;
         Vector2 embeddedDrawSize;
         bool openedByShortcut;
         bool mouseInWindow;

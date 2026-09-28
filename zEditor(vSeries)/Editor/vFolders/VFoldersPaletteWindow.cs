@@ -592,18 +592,16 @@ namespace VFolders
             {
                 if (VFolders.data) return;
 
-                VFolders.data = ScriptableObject.CreateInstance<VFoldersData>();
-
-                AssetDatabase.CreateAsset(VFolders.data, GetScriptPath("VFolders").GetParentPath().CombinePath("vFolders Data.asset"));
+                VFolders.data = VFoldersDataStorage.GetOrCreateData();
 
             }
             void createPalette()
             {
-                if (VFolders.palette) return;
+                var palettePath = VFolders.palette ? AssetDatabase.GetAssetPath(VFolders.palette) : "";
+                if (palettePath.StartsWith("Assets/", System.StringComparison.Ordinal))
+                    return;
 
-                VFolders.palette = ScriptableObject.CreateInstance<VFoldersPalette>();
-
-                AssetDatabase.CreateAsset(VFolders.palette, GetScriptPath("VFolders").GetParentPath().CombinePath("vFolders Palette.asset"));
+                VFolders.palette = VFoldersDataStorage.GetOrCreatePalette();
 
             }
             void setSize()

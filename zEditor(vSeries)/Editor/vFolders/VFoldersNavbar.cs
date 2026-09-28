@@ -66,6 +66,7 @@ namespace VFolders
                 }
                 void selectPalette()
                 {
+                    VFolders.palette = VFoldersDataStorage.GetOrCreatePalette();
                     Selection.activeObject = palette;
                 }
                 void clearCache()
@@ -297,9 +298,7 @@ namespace VFolders
                     if (!navbarRect.IsHovered()) return;
                     if (!DragAndDrop.objectReferences.Any()) return;
 
-                    data = ScriptableObject.CreateInstance<VFoldersData>();
-
-                    AssetDatabase.CreateAsset(data, GetScriptPath("VFolders").GetParentPath().CombinePath("vFolders Data.asset"));
+                    data = VFoldersDataStorage.GetOrCreateData();
 
                 }
                 void handleUndoRedo()

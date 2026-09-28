@@ -41,3 +41,5 @@ Changes made to this local package folder are immediately available to the proje
 ## Data storage
 
 vFavorites stores its data by default at `Assets/Editor/vFavorites Data.asset`. Existing data anywhere under `Assets` is reused. If old package data can be read, it is copied into `Assets` while the original remains untouched; package directories are never written. A package data file without a `.meta` can only be found while it remains at the currently resolved package location. After changing this Git package, publish a new Git commit and update the package dependency in the Unity project. For local development, use **Add package from disk...**.
+
+vFolders stores project data at `Assets/Editor/vFolders Data.asset` and creates an editable palette at `Assets/Editor/vFolders Palette.asset`. The shipped package palette remains a read-only default template; existing package data is copied into `Assets/Editor` when needed, and package source files are never modified.
