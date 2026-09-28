@@ -37,3 +37,7 @@ Unity records the resolved Git commit in the consuming project's lock file. Reus
 Use **Add package from disk...** in Package Manager and select this folder's `package.json`.
 
 Changes made to this local package folder are immediately available to the project after Unity recompiles. Changes made to a cached Git or registry package should instead be developed in a local package or copied into the project as project-owned code.
+
+## Data storage
+
+vFavorites stores its data by default at `Assets/Editor/vFavorites Data.asset`. Existing data anywhere under `Assets` is reused. If old package data can be read, it is copied into `Assets` while the original remains untouched; package directories are never written. A package data file without a `.meta` can only be found while it remains at the currently resolved package location. After changing this Git package, publish a new Git commit and update the package dependency in the Unity project. For local development, use **Add package from disk...**.

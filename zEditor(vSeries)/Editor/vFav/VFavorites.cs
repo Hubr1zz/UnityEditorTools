@@ -30,11 +30,10 @@ namespace VFavorites
 
             void createData()
             {
-                if (data) return;
+                if (data)
+                    return;
 
-                data = ScriptableObject.CreateInstance<VFavoritesData>();
-
-                AssetDatabase.CreateAsset(data, GetScriptPath("VFavorites").GetParentPath().CombinePath("vFavorites Data.asset"));
+                data = VFavoritesDataStorage.GetOrCreate();
 
             }
             void closeNavbarSearch()
@@ -1911,17 +1910,10 @@ namespace VFavorites
             }
             void loadData()
             {
-                data = AssetDatabase.LoadAssetAtPath<VFavoritesData>(EditorPrefsCached.GetString("vFavorites-lastKnownDataPath-" + GetProjectId()));
+                if (data)
+                    return;
 
-
-                if (data) return;
-
-                data = AssetDatabase.FindAssets("t:VFavoritesData").Select(guid => AssetDatabase.LoadAssetAtPath<VFavoritesData>(guid.ToPath())).FirstOrDefault();
-
-
-                if (!data) return;
-
-                EditorPrefsCached.SetString("vFavorites-lastKnownDataPath-" + GetProjectId(), data.GetPath());
+                data = VFavoritesDataStorage.Load();
 
             }
             void loadDataDelayed()

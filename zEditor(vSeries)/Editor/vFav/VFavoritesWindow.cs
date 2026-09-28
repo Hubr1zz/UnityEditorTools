@@ -1504,26 +1504,18 @@ namespace VFavorites
 
         void loadData()
         {
-            if (VFavorites.data) return;
+            if (VFavorites.data)
+                return;
 
-            VFavorites.data = AssetDatabase.LoadAssetAtPath<VFavoritesData>(EditorPrefsCached.GetString("vFavorites-lastKnownDataPath-" + GetProjectId()));
-
-            if (VFavorites.data) return;
-
-            VFavorites.data = AssetDatabase.FindAssets("t:VFavoritesData").Select(guid => AssetDatabase.LoadAssetAtPath<VFavoritesData>(guid.ToPath())).FirstOrDefault();
+            VFavorites.data = VFavoritesDataStorage.Load();
         }
 
         void createData()
         {
-            if (data) return;
+            if (data)
+                return;
 
-            loadData();
-
-            if (data) return;
-
-            VFavorites.data = ScriptableObject.CreateInstance<VFavoritesData>();
-
-            AssetDatabase.CreateAsset(VFavorites.data, GetScriptPath("VFavorites").GetParentPath().CombinePath("vFavorites Data.asset"));
+            VFavorites.data = VFavoritesDataStorage.GetOrCreate();
         }
 
 
