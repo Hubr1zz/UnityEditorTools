@@ -134,10 +134,7 @@ namespace VFavorites
 
         static string PrepareTargetPath()
         {
-            if (!AssetDatabase.IsValidFolder(VFavoritesConsts.DataFolderPath))
-                AssetDatabase.CreateFolder("Assets", "Editor");
-            if (!AssetDatabase.IsValidFolder(VFavoritesConsts.DataFolderPath))
-                throw new InvalidOperationException($"Could not create '{VFavoritesConsts.DataFolderPath}' for vFavorites data.");
+            EnsureFolderPathExists(VFavoritesConsts.DataFolderPath);
 
             var existingGuid = AssetDatabase.AssetPathToGUID(VFavoritesConsts.DataAssetPath);
             var existingFilePath = Path.Combine(Directory.GetParent(Application.dataPath).FullName, VFavoritesConsts.DataAssetPath.Replace('/', Path.DirectorySeparatorChar));
@@ -151,9 +148,45 @@ namespace VFavorites
             return targetPath;
         }
 
+        static void EnsureFolderPathExists(string folderPath)
+        {
+            var segments = folderPath.Split('/');
+            if (segments.Length == 0 || segments[0] != "Assets")
+                throw new InvalidOperationException($"The vFavorites data folder '{folderPath}' must be inside Assets.");
+
+            var parentPath = "Assets";
+            for (var index = 1; index < segments.Length; index++)
+            {
+                var path = parentPath + "/" + segments[index];
+                if (!AssetDatabase.IsValidFolder(path))
+                    AssetDatabase.CreateFolder(parentPath, segments[index]);
+                if (!AssetDatabase.IsValidFolder(path))
+                    throw new InvalidOperationException($"Could not create '{path}' for vFavorites data.");
+
+                parentPath = path;
+            }
+        }
+
         static VFavoritesData Remember(VFavoritesData data)
         {
-            EditorPrefsCached.SetString(VFavoritesConsts.LastKnownDataPathKeyPrefix + GetProjectId(), AssetDatabase.GetAssetPath(data));
+            var path = AssetDatabase.GetAssetPath(data);
+            if (!path.StartsWith("Assets/", StringComparison.Ordinal))
+                return data;
+
+            var targetPath = VFavoritesConsts.DataAssetPath;
+            if (path != targetPath)
+            {
+                EnsureFolderPathExists(VFavoritesConsts.DataFolderPath);
+                var error = AssetDatabase.MoveAsset(path, targetPath);
+                if (!string.IsNullOrEmpty(error))
+                    throw new InvalidOperationException($"Could not move vFavorites data from '{path}' to '{targetPath}': {error}");
+
+                data = AssetDatabase.LoadAssetAtPath<VFavoritesData>(targetPath);
+                if (!data)
+                    throw new InvalidOperationException($"Moved vFavorites data could not be loaded from '{targetPath}'.");
+            }
+
+            EditorPrefsCached.SetString(VFavoritesConsts.LastKnownDataPathKeyPrefix + GetProjectId(), targetPath);
             return data;
         }
     }

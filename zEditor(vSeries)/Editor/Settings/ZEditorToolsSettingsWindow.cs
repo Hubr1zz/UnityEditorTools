@@ -1,5 +1,6 @@
 #if UNITY_EDITOR
 using System;
+using System.IO;
 using UnityEditor;
 using UnityEditor.Compilation;
 using UnityEngine;
@@ -13,10 +14,20 @@ namespace ZEditorTools
 {
     public class ZEditorToolsSettingsWindow : EditorWindow
     {
-        static readonly string[] TabNames = { "vFavorites", "vFolders", "vHierarchy", "vInspector", "vTabs" };
+        const string dataFolderPathPreferenceKey = "zEditorTools.DataFolderPath.";
+        const string defaultDataFolderPath = "Assets/Editor";
+        static readonly string[] TabNames = { "vFavorites", "vFolders", "vHierarchy", "vInspector", "vTabs", "存储路径" };
 
         Vector2 scrollPosition;
         int selectedTab;
+        string dataFolderPath;
+        string dataFolderPathError;
+
+        void OnEnable()
+        {
+            var savedPath = EditorPrefs.GetString(dataFolderPathPreferenceKey + PlayerSettings.productGUID, defaultDataFolderPath);
+            dataFolderPath = TryNormalizeDataFolderPath(savedPath, out var normalizedPath, out _) ? normalizedPath : defaultDataFolderPath;
+        }
 
         [MenuItem("Tools/EditorTools/Settings", false, 1)]
         public static void ShowWindow()
@@ -51,6 +62,9 @@ namespace ZEditorTools
                     break;
                 case 4:
                     DrawTabsSettings();
+                    break;
+                case 5:
+                    DrawDataStorageSettings();
                     break;
             }
 
@@ -193,6 +207,128 @@ namespace ZEditorTools
 #endif
             }
         }
+
+        void DrawDataStorageSettings()
+        {
+            DrawHeader("插件数据存储", "设置 zEditor Tools 在当前 Unity 项目中保存数据资源和生成样式的位置。");
+            EditorGUILayout.HelpBox("路径必须位于 Assets 内。Team Mode 仍会把 vFolders 图标和颜色写入各文件夹的 .meta；关闭 Team Mode 时，这些信息保存在 vFolders Data.asset。Assets 内的数据是否进入 Git，取决于仓库的忽略规则和提交操作。", MessageType.Info);
+
+            EditorGUILayout.BeginHorizontal();
+            dataFolderPath = EditorGUILayout.TextField("项目内路径", dataFolderPath);
+            if (GUILayout.Button("浏览…", GUILayout.Width(72f)))
+                BrowseDataFolder();
+            if (GUILayout.Button("默认", GUILayout.Width(56f)))
+            {
+                dataFolderPath = defaultDataFolderPath;
+                dataFolderPathError = null;
+            }
+            EditorGUILayout.EndHorizontal();
+
+            EditorGUILayout.LabelField("默认：" + defaultDataFolderPath, EditorStyles.miniLabel);
+            EditorGUILayout.LabelField("新建数据会使用此目录。已有 Assets 数据会在插件下次加载时移动并保留 GUID；包内默认数据会复制到此目录。建议更改后重启 Unity Editor。", EditorStyles.wordWrappedMiniLabel);
+            if (!string.IsNullOrEmpty(dataFolderPathError))
+                EditorGUILayout.HelpBox(dataFolderPathError, MessageType.Error);
+
+            EditorGUILayout.Space(8f);
+            if (!GUILayout.Button("应用路径", GUILayout.Height(26f)))
+                return;
+            if (!TryNormalizeDataFolderPath(dataFolderPath, out var normalizedPath, out dataFolderPathError))
+                return;
+            if (!EnsureProjectAssetFolder(normalizedPath, out dataFolderPathError))
+                return;
+
+            EditorPrefs.SetString(dataFolderPathPreferenceKey + PlayerSettings.productGUID, normalizedPath);
+            dataFolderPath = normalizedPath;
+            dataFolderPathError = null;
+            VTabs.VTabs.UpdateStyleSheet();
+            Repaint();
+        }
+
+        void BrowseDataFolder()
+        {
+            var selectedPath = EditorUtility.OpenFolderPanel("选择插件数据目录", Application.dataPath, "");
+            if (string.IsNullOrEmpty(selectedPath))
+                return;
+
+            var assetsPath = Path.GetFullPath(Application.dataPath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var fullPath = Path.GetFullPath(selectedPath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            if (string.Equals(fullPath, assetsPath, GetPathComparison()))
+            {
+                dataFolderPath = "Assets";
+                dataFolderPathError = null;
+                return;
+            }
+
+            var assetsPrefix = assetsPath + Path.DirectorySeparatorChar;
+            if (!fullPath.StartsWith(assetsPrefix, GetPathComparison()))
+            {
+                dataFolderPathError = "请选择当前项目 Assets 文件夹内的目录。";
+                return;
+            }
+
+            dataFolderPath = "Assets/" + fullPath.Substring(assetsPrefix.Length).Replace(Path.DirectorySeparatorChar, '/').Replace(Path.AltDirectorySeparatorChar, '/');
+            dataFolderPathError = null;
+        }
+
+        static bool TryNormalizeDataFolderPath(string path, out string normalizedPath, out string error)
+        {
+            normalizedPath = string.IsNullOrWhiteSpace(path) ? "" : path.Trim().Replace('\\', '/').TrimEnd('/');
+            error = null;
+            if (normalizedPath != "Assets" && !normalizedPath.StartsWith("Assets/", StringComparison.Ordinal))
+            {
+                error = "路径必须以 Assets 开头，不能写入 Packages 或项目外目录。";
+                return false;
+            }
+
+            var invalidChars = Path.GetInvalidFileNameChars();
+            foreach (var segment in normalizedPath.Split('/'))
+            {
+                if (string.IsNullOrWhiteSpace(segment) || segment == "." || segment == "..")
+                {
+                    error = "路径不能包含空目录、. 或 ..。";
+                    return false;
+                }
+
+                foreach (var character in segment)
+                    if (Array.IndexOf(invalidChars, character) >= 0)
+                    {
+                        error = "路径中包含当前操作系统不支持的文件名字符。";
+                        return false;
+                    }
+
+                if (segment.EndsWith(".", StringComparison.Ordinal) || segment.EndsWith(" ", StringComparison.Ordinal))
+                {
+                    error = "目录名不能以句点或空格结尾。";
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        static bool EnsureProjectAssetFolder(string assetPath, out string error)
+        {
+            error = null;
+            var segments = assetPath.Split('/');
+            var parentPath = "Assets";
+            for (var index = 1; index < segments.Length; index++)
+            {
+                var folderPath = parentPath + "/" + segments[index];
+                if (!AssetDatabase.IsValidFolder(folderPath))
+                    AssetDatabase.CreateFolder(parentPath, segments[index]);
+                if (!AssetDatabase.IsValidFolder(folderPath))
+                {
+                    error = "无法创建目录：" + folderPath;
+                    return false;
+                }
+
+                parentPath = folderPath;
+            }
+
+            return true;
+        }
+
+        static StringComparison GetPathComparison() => Application.platform == RuntimePlatform.WindowsEditor ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
 
         static void DrawActivationKey()
         {

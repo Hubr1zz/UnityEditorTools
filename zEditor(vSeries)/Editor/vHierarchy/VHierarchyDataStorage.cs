@@ -79,10 +79,7 @@ namespace VHierarchy
         {
             try
             {
-                if (!AssetDatabase.IsValidFolder(VHierarchyConsts.DataFolderPath))
-                    AssetDatabase.CreateFolder("Assets", "Editor");
-                if (!AssetDatabase.IsValidFolder(VHierarchyConsts.DataFolderPath))
-                    throw new InvalidOperationException($"Could not create '{VHierarchyConsts.DataFolderPath}' for zEditor data.");
+                EnsureFolderPathExists(VHierarchyConsts.DataFolderPath);
 
                 var path = VHierarchyConsts.DataFolderPath + "/" + fileName;
                 var projectDirectory = Directory.GetParent(Application.dataPath);
@@ -117,11 +114,45 @@ namespace VHierarchy
             return scriptPath.GetParentPath() + "/" + fileName;
         }
 
+        static void EnsureFolderPathExists(string folderPath)
+        {
+            var segments = folderPath.Split('/');
+            if (segments.Length == 0 || segments[0] != "Assets")
+                throw new InvalidOperationException($"The zEditor data folder '{folderPath}' must be inside Assets.");
+
+            var parentPath = "Assets";
+            for (var index = 1; index < segments.Length; index++)
+            {
+                var path = parentPath + "/" + segments[index];
+                if (!AssetDatabase.IsValidFolder(path))
+                    AssetDatabase.CreateFolder(parentPath, segments[index]);
+                if (!AssetDatabase.IsValidFolder(path))
+                    throw new InvalidOperationException($"Could not create '{path}' for zEditor data.");
+
+                parentPath = path;
+            }
+        }
+
         static T Remember<T>(T asset, string pathKey) where T : ScriptableObject
         {
             var path = AssetDatabase.GetAssetPath(asset);
-            if (path.StartsWith("Assets/", StringComparison.Ordinal))
-                ProjectPrefs.SetString(pathKey, path);
+            if (!path.StartsWith("Assets/", StringComparison.Ordinal))
+                return asset;
+
+            var targetPath = VHierarchyConsts.DataFolderPath + "/" + Path.GetFileName(path);
+            if (path != targetPath)
+            {
+                EnsureFolderPathExists(VHierarchyConsts.DataFolderPath);
+                var error = AssetDatabase.MoveAsset(path, targetPath);
+                if (!string.IsNullOrEmpty(error))
+                    throw new InvalidOperationException($"Could not move zEditor data from '{path}' to '{targetPath}': {error}");
+
+                asset = AssetDatabase.LoadAssetAtPath<T>(targetPath);
+                if (!asset)
+                    throw new InvalidOperationException($"Moved zEditor data could not be loaded from '{targetPath}'.");
+            }
+
+            ProjectPrefs.SetString(pathKey, targetPath);
 
             return asset;
         }

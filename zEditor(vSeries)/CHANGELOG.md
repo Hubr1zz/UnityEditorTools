@@ -1,7 +1,8 @@
 # Changelog
 
-## [0.1.6] - 2026-10-11
+## [0.1.7] - 2026-10-11
 
+- Added a project-specific data folder setting shared by all zEditor Tools modules.
 - Store vHierarchy, vInspector, and vTabs project data under `Assets` when installed through Package Manager.
 - Copy the shipped vFolders and vHierarchy palettes into editable project assets before using them.
 - Migrate previously generated package data into `Assets` without modifying package files.

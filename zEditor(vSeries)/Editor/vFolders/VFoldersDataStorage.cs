@@ -154,10 +154,7 @@ namespace VFolders
 
         static string PrepareTargetPath(string fileName)
         {
-            if (!AssetDatabase.IsValidFolder(VFoldersConsts.DataFolderPath))
-                AssetDatabase.CreateFolder("Assets", "Editor");
-            if (!AssetDatabase.IsValidFolder(VFoldersConsts.DataFolderPath))
-                throw new InvalidOperationException($"Could not create '{VFoldersConsts.DataFolderPath}' for vFolders data.");
+            EnsureFolderPathExists(VFoldersConsts.DataFolderPath);
 
             var targetPath = VFoldersConsts.DataFolderPath + "/" + fileName;
             var existingGuid = AssetDatabase.AssetPathToGUID(targetPath);
@@ -174,6 +171,25 @@ namespace VFolders
                 throw new InvalidOperationException($"The vFolders asset target '{targetPath}' already exists. It was not overwritten.");
 
             return targetPath;
+        }
+
+        static void EnsureFolderPathExists(string folderPath)
+        {
+            var segments = folderPath.Split('/');
+            if (segments.Length == 0 || segments[0] != "Assets")
+                throw new InvalidOperationException($"The vFolders data folder '{folderPath}' must be inside Assets.");
+
+            var parentPath = "Assets";
+            for (var index = 1; index < segments.Length; index++)
+            {
+                var path = parentPath + "/" + segments[index];
+                if (!AssetDatabase.IsValidFolder(path))
+                    AssetDatabase.CreateFolder(parentPath, segments[index]);
+                if (!AssetDatabase.IsValidFolder(path))
+                    throw new InvalidOperationException($"Could not create '{path}' for vFolders data.");
+
+                parentPath = path;
+            }
         }
 
         static string GetScriptAdjacentPath(string fileName)
@@ -195,7 +211,20 @@ namespace VFolders
             if (!IsAssetsPath(path))
                 return asset;
 
-            ProjectPrefs.SetString(lastKnownPathKey, path);
+            var targetPath = VFoldersConsts.DataFolderPath + "/" + Path.GetFileName(path);
+            if (path != targetPath)
+            {
+                EnsureFolderPathExists(VFoldersConsts.DataFolderPath);
+                var error = AssetDatabase.MoveAsset(path, targetPath);
+                if (!string.IsNullOrEmpty(error))
+                    throw new InvalidOperationException($"Could not move vFolders data from '{path}' to '{targetPath}': {error}");
+
+                asset = AssetDatabase.LoadAssetAtPath<T>(targetPath);
+                if (!asset)
+                    throw new InvalidOperationException($"Moved vFolders data could not be loaded from '{targetPath}'.");
+            }
+
+            ProjectPrefs.SetString(lastKnownPathKey, targetPath);
             return asset;
         }
     }

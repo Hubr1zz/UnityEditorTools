@@ -79,10 +79,7 @@ namespace VInspector
         {
             try
             {
-                if (!AssetDatabase.IsValidFolder(VInspectorConsts.DataFolderPath))
-                    AssetDatabase.CreateFolder("Assets", "Editor");
-                if (!AssetDatabase.IsValidFolder(VInspectorConsts.DataFolderPath))
-                    throw new InvalidOperationException($"Could not create '{VInspectorConsts.DataFolderPath}' for vInspector data.");
+                EnsureFolderPathExists(VInspectorConsts.DataFolderPath);
 
                 var path = VInspectorConsts.DataFolderPath + "/" + VInspectorConsts.DataFileName;
                 var projectDirectory = Directory.GetParent(Application.dataPath);
@@ -111,10 +108,44 @@ namespace VInspector
         static VInspectorData Remember(VInspectorData data)
         {
             var path = AssetDatabase.GetAssetPath(data);
-            if (path.StartsWith("Assets/", StringComparison.Ordinal))
-                ProjectPrefs.SetString(VInspectorConsts.LastKnownDataPathKey, path);
+            if (!path.StartsWith("Assets/", StringComparison.Ordinal))
+                return data;
+
+            var targetPath = VInspectorConsts.DataFolderPath + "/" + VInspectorConsts.DataFileName;
+            if (path != targetPath)
+            {
+                EnsureFolderPathExists(VInspectorConsts.DataFolderPath);
+                var error = AssetDatabase.MoveAsset(path, targetPath);
+                if (!string.IsNullOrEmpty(error))
+                    throw new InvalidOperationException($"Could not move vInspector data from '{path}' to '{targetPath}': {error}");
+
+                data = AssetDatabase.LoadAssetAtPath<VInspectorData>(targetPath);
+                if (!data)
+                    throw new InvalidOperationException($"Moved vInspector data could not be loaded from '{targetPath}'.");
+            }
+
+            ProjectPrefs.SetString(VInspectorConsts.LastKnownDataPathKey, targetPath);
 
             return data;
+        }
+
+        static void EnsureFolderPathExists(string folderPath)
+        {
+            var segments = folderPath.Split('/');
+            if (segments.Length == 0 || segments[0] != "Assets")
+                throw new InvalidOperationException($"The vInspector data folder '{folderPath}' must be inside Assets.");
+
+            var parentPath = "Assets";
+            for (var index = 1; index < segments.Length; index++)
+            {
+                var path = parentPath + "/" + segments[index];
+                if (!AssetDatabase.IsValidFolder(path))
+                    AssetDatabase.CreateFolder(parentPath, segments[index]);
+                if (!AssetDatabase.IsValidFolder(path))
+                    throw new InvalidOperationException($"Could not create '{path}' for vInspector data.");
+
+                parentPath = path;
+            }
         }
     }
 }
