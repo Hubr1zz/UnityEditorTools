@@ -581,18 +581,14 @@ namespace VHierarchy
             {
                 if (VHierarchy.data) return;
 
-                VHierarchy.data = ScriptableObject.CreateInstance<VHierarchyData>();
-
-                AssetDatabase.CreateAsset(VHierarchy.data, GetScriptPath("VHierarchy").GetParentPath().CombinePath("vHierarchy Data.asset"));
+                VHierarchy.data = VHierarchyDataStorage.GetOrCreateData();
 
             }
             void createPalette()
             {
                 if (VHierarchy.palette) return;
 
-                VHierarchy.palette = ScriptableObject.CreateInstance<VHierarchyPalette>();
-
-                AssetDatabase.CreateAsset(VHierarchy.palette, GetScriptPath("VHierarchy").GetParentPath().CombinePath("vHierarchy Palette.asset"));
+                VHierarchy.palette = VHierarchyDataStorage.GetOrCreatePalette();
 
             }
             void setSize()

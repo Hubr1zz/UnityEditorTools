@@ -59,12 +59,17 @@ namespace VTabs
 
             void updatePluginFolderPath()
             {
-                if (AssetDatabase.LoadAssetAtPath<Object>(pluginFolderPath.CombinePath("VTabs.cs")) is not null) return;
+                if (!string.IsNullOrEmpty(pluginFolderPath) && pluginFolderPath.StartsWith("Assets/", StringComparison.Ordinal) && AssetDatabase.LoadAssetAtPath<Object>(pluginFolderPath.CombinePath("VTabs.cs")) is not null) return;
 
 
                 var mainScriptPath = GetScriptPath(nameof(VTabs));
+                if (!string.IsNullOrEmpty(mainScriptPath) && mainScriptPath.StartsWith("Assets/", StringComparison.Ordinal))
+                {
+                    ProjectPrefs.SetString("vTabs-plugin-folder-path", mainScriptPath.GetParentPath());
+                    return;
+                }
 
-                ProjectPrefs.SetString("vTabs-plugin-folder-path", mainScriptPath.GetParentPath());
+                ProjectPrefs.SetString("vTabs-plugin-folder-path", VTabsConsts.ProjectDataFolderPath);
 
             }
 

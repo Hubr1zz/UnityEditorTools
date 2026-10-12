@@ -222,9 +222,7 @@ namespace VHierarchy
                     if (!bookmarkButtonRect.IsHovered()) return;
                     if (!DragAndDrop.objectReferences.Any()) return;
 
-                    data = ScriptableObject.CreateInstance<VHierarchyData>();
-
-                    AssetDatabase.CreateAsset(data, GetScriptPath("VHierarchy").GetParentPath().CombinePath("vHierarchy Data.asset"));
+                    data = VHierarchyDataStorage.GetOrCreateData();
 
                 }
 
@@ -270,8 +268,7 @@ namespace VHierarchy
 
                         if (data == null)
                         {
-                            data = ScriptableObject.CreateInstance<VHierarchyData>();
-                            AssetDatabase.CreateAsset(data, GetScriptPath("VHierarchy").GetParentPath().CombinePath("vHierarchy Data.asset"));
+                            data = VHierarchyDataStorage.GetOrCreateData();
                         }
 
                         foreach (var obj in DragAndDrop.objectReferences.OfType<GameObject>())

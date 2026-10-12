@@ -16,11 +16,7 @@ namespace VFolders
 
         internal static VFoldersPalette LoadPalette()
         {
-            var palette = Load<VFoldersPalette>(VFoldersConsts.LastKnownPalettePathKey, VFoldersConsts.PaletteFileName);
-            if (palette)
-                return palette;
-
-            return LoadPackageDefault<VFoldersPalette>(VFoldersConsts.PaletteFileName);
+            return GetOrCreatePalette();
         }
 
         internal static VFoldersData GetOrCreateData() => GetOrCreate<VFoldersData>(VFoldersConsts.LastKnownDataPathKey, VFoldersConsts.DataFileName);
@@ -54,15 +50,6 @@ namespace VFolders
             }
 
             return null;
-        }
-
-        static T LoadPackageDefault<T>(string fileName) where T : ScriptableObject
-        {
-            var path = GetScriptAdjacentPath(fileName);
-            if (!IsPackagesPath(path))
-                return null;
-
-            return AssetDatabase.LoadAssetAtPath<T>(path);
         }
 
         static T GetOrCreate<T>(string lastKnownPathKey, string fileName) where T : ScriptableObject

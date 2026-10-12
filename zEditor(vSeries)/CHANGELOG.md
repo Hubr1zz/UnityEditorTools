@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.6] - 2026-10-11
+
+- Store vHierarchy, vInspector, and vTabs project data under `Assets` when installed through Package Manager.
+- Copy the shipped vFolders and vHierarchy palettes into editable project assets before using them.
+- Migrate previously generated package data into `Assets` without modifying package files.
+
 ## [0.1.5] - 2026-09-16
 
 - Moved the model-preview settings entry to the main toolbar and removed the Inspector-root fallback that misplaced it on Unity 2022.

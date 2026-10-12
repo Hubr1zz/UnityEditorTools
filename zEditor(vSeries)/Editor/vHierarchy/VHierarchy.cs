@@ -1485,32 +1485,12 @@ namespace VHierarchy
             }
             void loadData()
             {
-                data = AssetDatabase.LoadAssetAtPath<VHierarchyData>(ProjectPrefs.GetString("vHierarchy-lastKnownDataPath"));
-
-
-                if (data) return;
-
-                data = AssetDatabase.FindAssets("t:VHierarchyData").Select(guid => AssetDatabase.LoadAssetAtPath<VHierarchyData>(guid.ToPath())).FirstOrDefault();
-
-
-                if (!data) return;
-
-                ProjectPrefs.SetString("vHierarchy-lastKnownDataPath", data.GetPath());
+                data = VHierarchyDataStorage.LoadData();
 
             }
             void loadPalette()
             {
-                palette = AssetDatabase.LoadAssetAtPath<VHierarchyPalette>(ProjectPrefs.GetString("vHierarchy-lastKnownPalettePath"));
-
-
-                if (palette) return;
-
-                palette = AssetDatabase.FindAssets("t:VHierarchyPalette").Select(guid => AssetDatabase.LoadAssetAtPath<VHierarchyPalette>(guid.ToPath())).FirstOrDefault();
-
-
-                if (!palette) return;
-
-                ProjectPrefs.SetString("vHierarchy-lastKnownPalettePath", palette.GetPath());
+                palette = VHierarchyDataStorage.LoadPalette();
 
             }
             void loadDataAndPaletteDelayed()

@@ -215,9 +215,7 @@ namespace VInspector
                     if (!navbarRect.IsHovered()) return;
                     if (!DragAndDrop.objectReferences.Any()) return;
 
-                    data = ScriptableObject.CreateInstance<VInspectorData>();
-
-                    AssetDatabase.CreateAsset(data, GetScriptPath("VInspector").GetParentPath().CombinePath("vInspector Data.asset"));
+                    data = VInspectorDataStorage.GetOrCreate();
 
                 }
                 void repaintOnUndoRedo()

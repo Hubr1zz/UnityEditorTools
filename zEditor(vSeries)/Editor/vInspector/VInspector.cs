@@ -1499,17 +1499,7 @@ namespace VInspector
             }
             void loadData()
             {
-                data = AssetDatabase.LoadAssetAtPath<VInspectorData>(ProjectPrefs.GetString("vInspector-lastKnownDataPath"));
-
-
-                if (data) return;
-
-                data = AssetDatabase.FindAssets("t:VInspectorData").Select(guid => AssetDatabase.LoadAssetAtPath<VInspectorData>(guid.ToPath())).FirstOrDefault();
-
-
-                if (!data) return;
-
-                ProjectPrefs.SetString("vInspector-lastKnownDataPath", data.GetPath());
+                data = VInspectorDataStorage.Load();
 
             }
             void loadDataDelayed()
